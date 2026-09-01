@@ -36,10 +36,16 @@ from __future__ import annotations
 
 import threading
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
-import jaydebeapi
+with warnings.catch_warnings():
+    # jaydebeapi/__init__.py:188 uses '\d' in a non-raw string; Python 3.12
+    # emits SyntaxWarning when it compiles the module. Harmless, but noisy on
+    # every run because the serverless env recompiles it each time.
+    warnings.simplefilter("ignore", SyntaxWarning)
+    import jaydebeapi
 import jpype
 from azure.keyvault.secrets import SecretClient
 from databricks.sdk.runtime import dbutils
@@ -67,7 +73,7 @@ SERVICE_CREDENTIAL = "dataops_dbaccess"
 
 FETCH_SIZE = 10_000      # JDBC rows per network round trip
 BATCH_ROWS = 100_000     # rows accumulated before each Delta flush
-_LOG = "[jdbc_netsuite]"
+_LOG = "[jdbc_connectors.jdbc_netsuite]"
 
 _TIMESTAMP_FORMATS = ("M/d/yyyy h:mm a", "M/d/yyyy")
 
