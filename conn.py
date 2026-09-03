@@ -1,7 +1,19 @@
-chargebee.py line 270 — the strongest one:
-
-The watermark comes from get_bronze_watermark() as a timestamp string, but Chargebee's updated_at[after] expects a Unix epoch. I don't see a conversion anywhere between the notebook and here, so full loads will work and incrementals will break on the second run. Should we convert inside fetch_raw() so the Chargebee-specific format stays with the Chargebee connector?
-
-purge_chargebee_staging.py lines 63-64:
-
-This reads the table into retained_df and then overwrites that same table. It also rewrites every retained row and does two full counts, so it's three passes to delete a few days of data. Could we use DELETE FROM {table} WHERE to_date(batch_date) < date_sub(current_date(), 6) instead? Atomic, and no self-reference.
+    Returns:
+        For a datetime-typed column: an ISO 8601 string
+        (e.g. '2026-06-10T15:58:31.000Z'). For a numeric-typed column
+        (e.g. an epoch-second bigint): the value as a plain numeric string.
+        None if the table does not exist or contains no non-null watermark
+        values.
+    """
+        val = result.first()["max_watermark"]
+        if val is None:
+            return None
+        if hasattr(val, "strftime"):
+            return val.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        # Numeric watermark column (e.g. Chargebee's epoch-second updated_at,
+        # stored as bigint) - no datetime to format, just pass the value
+        # through as a string. The caller's API filter is responsible for
+        # knowing whether that string is an ISO timestamp or an epoch.
+        return str(val)
+    except Exception:
+        return None
