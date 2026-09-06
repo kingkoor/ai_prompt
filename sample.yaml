@@ -1,1 +1,447 @@
-ddd
+#silver transform configuration - Chargebee Data Vault 2.0
+#hubs, links, and satellites for the raw vault.
+#run the sync_vault_metadata notebook to push changes into the metadata tables.
+#NOTE: ETL_SourceSystem, ETL_Brand, ETL_Region are automatically added to ALL
+#vault entities by the framework. They do not need to be listed here.
+#
+#SCOPE: 6 objects confirmed with the team - customers, plans, addons, coupons,
+#invoices, subscriptions. All links here are Chargebee-internal. The SF<->CB
+#relationship is NOT modelled in the vault (the framework cannot express a
+#cross-system link); it is resolved above gold on the business key.
+#
+#All Chargebee timestamps are bigint epoch seconds and all money is integer
+#cents. Both are carried raw here and converted in the business satellite layer.
+
+source_system: chargebee
+record_source: chargebee_sitedocs
+brand: SiteDocs
+region: US
+target_catalog: bbdatawarehouse_dev
+bronze_schema: bronze
+silver_schema: silver
+
+#--- hubs ---
+
+hubs:
+  - table_name: chargebee_hub_customers
+    source_table: chargebee_customers_sitedocs_us
+    business_key_column: id
+    hash_key_name: HubCustomerHashKey
+    bk_column_name: CustomerBk
+    is_active: true
+
+  - table_name: chargebee_hub_subscriptions
+    source_table: chargebee_subscriptions_sitedocs_us
+    business_key_column: id
+    hash_key_name: HubSubscriptionHashKey
+    bk_column_name: SubscriptionBk
+    is_active: true
+
+  - table_name: chargebee_hub_plans
+    source_table: chargebee_plans_sitedocs_us
+    business_key_column: id
+    hash_key_name: HubPlanHashKey
+    bk_column_name: PlanBk
+    is_active: true
+
+  - table_name: chargebee_hub_invoices
+    source_table: chargebee_invoices_sitedocs_us
+    business_key_column: id
+    hash_key_name: HubInvoiceHashKey
+    bk_column_name: InvoiceBk
+    is_active: true
+
+  - table_name: chargebee_hub_addons
+    source_table: chargebee_addons_sitedocs_us
+    business_key_column: id
+    hash_key_name: HubAddonHashKey
+    bk_column_name: AddonBk
+    is_active: true
+
+  - table_name: chargebee_hub_coupons
+    source_table: chargebee_coupons_sitedocs_us
+    business_key_column: id
+    hash_key_name: HubCouponHashKey
+    bk_column_name: CouponBk
+    is_active: true
+
+#--- links ---
+
+links:
+  #a subscription belongs to one customer for its lifetime - immutable
+  - table_name: chargebee_link_subscription_customer
+    source_table: chargebee_subscriptions_sitedocs_us
+    hash_columns:
+      - id
+      - customer_id
+    hub_references:
+      - column_name: HubSubscriptionHashKey
+        source_column: id
+      - column_name: HubCustomerHashKey
+        source_column: customer_id
+    extra_bk: null
+    filter: "src.customer_id IS NOT NULL AND src.customer_id != ''"
+    relationship_pattern: 3
+    is_active: true
+
+  #plan CHANGES on upgrade/downgrade - this is what drives MRR movement.
+  #pattern 1 so the effectivity satellite tracks the plan history.
+  - table_name: chargebee_link_subscription_plan
+    source_table: chargebee_subscriptions_sitedocs_us
+    hash_columns:
+      - id
+      - plan_id
+    hub_references:
+      - column_name: HubSubscriptionHashKey
+        source_column: id
+      - column_name: HubPlanHashKey
+        source_column: plan_id
+    extra_bk: null
+    filter: "src.plan_id IS NOT NULL AND src.plan_id != ''"
+    relationship_pattern: 1
+    driving_key_column: HubSubscriptionHashKey
+    is_active: true
+
+  - table_name: chargebee_link_invoice_subscription
+    source_table: chargebee_invoices_sitedocs_us
+    hash_columns:
+      - id
+      - subscription_id
+    hub_references:
+      - column_name: HubInvoiceHashKey
+        source_column: id
+      - column_name: HubSubscriptionHashKey
+        source_column: subscription_id
+    extra_bk: null
+    filter: "src.subscription_id IS NOT NULL AND src.subscription_id != ''"
+    relationship_pattern: 3
+    is_active: true
+
+  - table_name: chargebee_link_invoice_customer
+    source_table: chargebee_invoices_sitedocs_us
+    hash_columns:
+      - id
+      - customer_id
+    hub_references:
+      - column_name: HubInvoiceHashKey
+        source_column: id
+      - column_name: HubCustomerHashKey
+        source_column: customer_id
+    extra_bk: null
+    filter: "src.customer_id IS NOT NULL AND src.customer_id != ''"
+    relationship_pattern: 3
+    is_active: true
+
+#--- satellites ---
+
+satellites:
+
+  - table_name: chargebee_sat_customers_sitedocs_us
+    source_table: chargebee_customers_sitedocs_us
+    parent_key: HubCustomerHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      CustomerObject: object
+      CustomerFraudFlag: fraud_flag
+      CustomerInvoiceNotes: invoice_notes
+      CustomerTaxability: taxability
+      CustomerExcessPayments: excess_payments
+      CustomerBalances: balances
+      CustomerNetTermDays: net_term_days
+      CustomerPIICleared: pii_cleared
+      CustomerLocale: locale
+      CustomerUpdatedAt: updated_at
+      CustomerConsolidatedInvoicing: consolidated_invoicing
+      CustomerCustomFields: custom_fields
+      CustomerAutoCollection: auto_collection
+      CustomerDeleted: deleted
+      CustomerAllowDirectDebit: allow_direct_debit
+      CustomerUnbilledCharges: unbilled_charges
+      CustomerPreferredCurrencyCode: preferred_currency_code
+      CustomerResourceVersion: resource_version
+      CustomerCreatedAt: created_at
+      CustomerMetaData: meta_data
+      CustomerCardStatus: card_status
+      CustomerPromotionalCredits: promotional_credits
+      CustomerRefundableCredits: refundable_credits
+      CustomerBackupPaymentSourceId: backup_payment_source_id
+      CustomerPrimaryPaymentSourceId: primary_payment_source_id
+      CustomerChannel: channel
+      CustomerMRR: mrr
+      CustomerTaxProvidersFields: tax_providers_fields
+      CustomerRelationship: relationship
+      CustomerChildAccountAccess: child_account_access
+      CustomerUseDefaultHierarchySettings: use_default_hierarchy_settings
+      CustomerParentAccountAccess: parent_account_access
+      CustomerSalesforceAccountId: cf_sf_accountid
+      CustomerIsLegacyRenewal: cf_is_legacy_renewal
+      CustomerRequestToNotRenew: cf_request_to_not_renew
+
+  #PII split, mirrors salesforce_sat_accounts_restricted_sitedocs_us
+  - table_name: chargebee_sat_customers_restricted_sitedocs_us
+    source_table: chargebee_customers_sitedocs_us
+    parent_key: HubCustomerHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      CustomerContacts: contacts
+      CustomerBillingAddress: billing_address
+      CustomerCompany: company
+      CustomerPaymentMethod: payment_method
+      CustomerEmail: email
+      CustomerLastName: last_name
+      CustomerCreatedFromIP: created_from_ip
+      CustomerFirstName: first_name
+      CustomerPhone: phone
+
+  - table_name: chargebee_sat_subscriptions_sitedocs_us
+    source_table: chargebee_subscriptions_sitedocs_us
+    parent_key: HubSubscriptionHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      SubscriptionObject: object
+      SubscriptionCoupon: coupon
+      SubscriptionAddons: addons
+      SubscriptionInvoiceNotes: invoice_notes
+      SubscriptionPlanUnitPrice: plan_unit_price
+      SubscriptionCurrencyCode: currency_code
+      SubscriptionBillingPeriodUnit: billing_period_unit
+      SubscriptionActivatedAt: activated_at
+      SubscriptionEventBasedAddons: event_based_addons
+      SubscriptionBillingPeriod: billing_period
+      SubscriptionPlanAmount: plan_amount
+      SubscriptionStartedAt: started_at
+      SubscriptionPlanQuantity: plan_quantity
+      SubscriptionCancelledAt: cancelled_at
+      SubscriptionRemainingBillingCycles: remaining_billing_cycles
+      SubscriptionUpdatedAt: updated_at
+      SubscriptionStatus: status
+      SubscriptionBaseCurrencyCode: base_currency_code
+      SubscriptionExchangeRate: exchange_rate
+      SubscriptionDueInvoicesCount: due_invoices_count
+      SubscriptionTotalDues: total_dues
+      SubscriptionPlanFreeQuantity: plan_free_quantity
+      SubscriptionCoupons: coupons
+      SubscriptionMRR: mrr
+      SubscriptionAutoCollection: auto_collection
+      SubscriptionPaymentSourceId: payment_source_id
+      SubscriptionDeleted: deleted
+      SubscriptionStartDate: start_date
+      SubscriptionResourceVersion: resource_version
+      SubscriptionCreatedAt: created_at
+      SubscriptionHasScheduledChanges: has_scheduled_changes
+      SubscriptionCurrentTermStart: current_term_start
+      SubscriptionChargedEventBasedAddons: charged_event_based_addons
+      SubscriptionPONumber: po_number
+      SubscriptionNextBillingAt: next_billing_at
+      SubscriptionDueSince: due_since
+      SubscriptionCurrentTermEnd: current_term_end
+      SubscriptionCancelReason: cancel_reason
+      SubscriptionChannel: channel
+      SubscriptionCustomFields: custom_fields
+      SubscriptionCancelReasonCode: cancel_reason_code
+      SubscriptionCancelScheduleCreatedAt: cancel_schedule_created_at
+      SubscriptionHasScheduledAdvanceInvoices: has_scheduled_advance_invoices
+      SubscriptionOverrideRelationship: override_relationship
+
+  #PII split, mirrors salesforce_sat_accounts_restricted_sitedocs_us
+  - table_name: chargebee_sat_subscriptions_restricted_sitedocs_us
+    source_table: chargebee_subscriptions_sitedocs_us
+    parent_key: HubSubscriptionHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      SubscriptionCreatedFromIP: created_from_ip
+      SubscriptionShippingAddress: shipping_address
+
+  - table_name: chargebee_sat_plans_sitedocs_us
+    source_table: chargebee_plans_sitedocs_us
+    parent_key: HubPlanHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      PlanObject: object
+      PlanRedirectURL: redirect_url
+      PlanSKU: sku
+      PlanApplicableAddons: applicable_addons
+      PlanFreeQuantity: free_quantity
+      PlanInvoiceNotes: invoice_notes
+      PlanChargeModel: charge_model
+      PlanPeriodUnit: period_unit
+      PlanGiftable: giftable
+      PlanEnabledInPortal: enabled_in_portal
+      PlanAddonApplicability: addon_applicability
+      PlanName: name
+      PlanIsShippable: is_shippable
+      PlanTaxable: taxable
+      PlanUpdatedAt: updated_at
+      PlanStatus: status
+      PlanInvoiceName: invoice_name
+      PlanBillingCycles: billing_cycles
+      PlanResourceVersion: resource_version
+      PlanPeriod: period
+      PlanEnabledInHostedPages: enabled_in_hosted_pages
+      PlanPrice: price
+      PlanDescription: description
+      PlanCurrencyCode: currency_code
+      PlanShowDescriptionInQuotes: show_description_in_quotes
+      PlanPricingModel: pricing_model
+      PlanAccountingCode: accounting_code
+      PlanShowDescriptionInInvoices: show_description_in_invoices
+      PlanChannel: channel
+      PlanCustomFields: custom_fields
+
+  - table_name: chargebee_sat_invoices_sitedocs_us
+    source_table: chargebee_invoices_sitedocs_us
+    parent_key: HubInvoiceHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      InvoiceTotal: total
+      InvoiceObject: object
+      InvoiceDueDate: due_date
+      InvoiceAppliedCredits: applied_credits
+      InvoiceRoundOffAmount: round_off_amount
+      InvoiceCurrencyCode: currency_code
+      InvoiceSubTotal: sub_total
+      InvoiceTaxes: taxes
+      InvoiceDiscounts: discounts
+      InvoiceCreditsApplied: credits_applied
+      InvoiceAmountPaid: amount_paid
+      InvoiceIssuedCreditNotes: issued_credit_notes
+      InvoiceNewSalesAmount: new_sales_amount
+      InvoicePaidAt: paid_at
+      InvoiceVoidedAt: voided_at
+      InvoiceNextRetryAt: next_retry_at
+      InvoiceDunningStatus: dunning_status
+      InvoiceNetTermDays: net_term_days
+      InvoiceRecurring: recurring
+      InvoiceAmountAdjusted: amount_adjusted
+      InvoiceAmountToCollect: amount_to_collect
+      InvoiceExpectedPaymentDate: expected_payment_date
+      InvoiceAmountDue: amount_due
+      InvoiceUpdatedAt: updated_at
+      InvoiceStatus: status
+      InvoiceBaseCurrencyCode: base_currency_code
+      InvoiceExchangeRate: exchange_rate
+      InvoiceLineItemDiscounts: line_item_discounts
+      InvoiceLineItemTaxes: line_item_taxes
+      InvoiceIsGifted: is_gifted
+      InvoicePriceType: price_type
+      InvoiceDeleted: deleted
+      InvoiceResourceVersion: resource_version
+      InvoiceDate: date
+      InvoiceHasAdvanceCharges: has_advance_charges
+      InvoiceTax: tax
+      InvoiceNotes: notes
+      InvoiceLineItems: line_items
+      InvoiceLinkedPayments: linked_payments
+      InvoiceAdjustmentCreditNotes: adjustment_credit_notes
+      InvoiceFirstInvoice: first_invoice
+      InvoicePONumber: po_number
+      InvoiceWriteOffAmount: write_off_amount
+      InvoiceTermFinalized: term_finalized
+      InvoiceDunningAttempts: dunning_attempts
+      InvoiceChannel: channel
+      InvoiceGeneratedAt: generated_at
+      InvoiceTaxOrigin: tax_origin
+      InvoiceSiteDetailsAtCreation: site_details_at_creation
+      InvoiceTaxSource: tax_source
+      InvoiceReferenceTransactions: reference_transactions
+      InvoiceLinkedOrders: linked_orders
+
+  #PII split, mirrors salesforce_sat_accounts_restricted_sitedocs_us
+  - table_name: chargebee_sat_invoices_restricted_sitedocs_us
+    source_table: chargebee_invoices_sitedocs_us
+    parent_key: HubInvoiceHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      InvoiceBillingAddress: billing_address
+      InvoiceShippingAddress: shipping_address
+      InvoicePaymentOwner: payment_owner
+
+  - table_name: chargebee_sat_addons_sitedocs_us
+    source_table: chargebee_addons_sitedocs_us
+    parent_key: HubAddonHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      AddonObject: object
+      AddonSKU: sku
+      AddonCurrencyCode: currency_code
+      AddonPeriodUnit: period_unit
+      AddonEnabledInPortal: enabled_in_portal
+      AddonPricingModel: pricing_model
+      AddonName: name
+      AddonChargeType: charge_type
+      AddonIsShippable: is_shippable
+      AddonTaxable: taxable
+      AddonUpdatedAt: updated_at
+      AddonStatus: status
+      AddonCustomFields: custom_fields
+      AddonAccountingCode: accounting_code
+      AddonInvoiceName: invoice_name
+      AddonType: type
+      AddonResourceVersion: resource_version
+      AddonUnit: unit
+      AddonPeriod: period
+      AddonPrice: price
+      AddonDescription: description
+      AddonShowDescriptionInQuotes: show_description_in_quotes
+      AddonShowDescriptionInInvoices: show_description_in_invoices
+      AddonChannel: channel
+      AddonTiers: tiers
+      AddonArchivedAt: archived_at
+      AddonIncludedInMRR: included_in_mrr
+
+  - table_name: chargebee_sat_coupons_sitedocs_us
+    source_table: chargebee_coupons_sitedocs_us
+    parent_key: HubCouponHashKey
+    parent_key_source:
+      - id
+    is_link_satellite: false
+    is_active: true
+    attributes:
+      CouponObject: object
+      CouponRedemptions: redemptions
+      CouponCurrencyCode: currency_code
+      CouponDiscountType: discount_type
+      CouponPlanConstraint: plan_constraint
+      CouponDiscountAmount: discount_amount
+      CouponApplyDiscountOn: apply_discount_on
+      CouponName: name
+      CouponApplyOn: apply_on
+      CouponDeleted: deleted
+      CouponInvoiceNotes: invoice_notes
+      CouponUpdatedAt: updated_at
+      CouponAddonIds: addon_ids
+      CouponStatus: status
+      CouponDiscountPercentage: discount_percentage
+      CouponAddonConstraint: addon_constraint
+      CouponInvoiceName: invoice_name
+      CouponArchivedAt: archived_at
+      CouponDurationType: duration_type
+      CouponResourceVersion: resource_version
+      CouponCreatedAt: created_at
+      CouponPlanIds: plan_ids
+      CouponIncludedInMRR: included_in_mrr
+
