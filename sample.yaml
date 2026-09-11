@@ -1,1291 +1,1175 @@
-# Silver Business Satellite Configuration - Salesforce curated business satellites
-# This file defines metadata-driven business satellites sourced from vault satellites.
-# Run the business satellite metadata sync to push changes into the metadata tables.
+# Gold Layer Configuration - Salesforce (Nexus / Bluebeam US)
+# See README.md in this directory for documentation on load types, satellite types,
+# restricted table rules, foreign key resolution strategies, and bridge tables.
+# Run sync_gold_metadata_runner.py to push changes into the metadata tables.
 #
-# is_active can be set at two levels:
-#   satellite level - set false to skip the entire bsat during sync and loading
-#   attribute level - set false to exclude a single column transformation from the load
-#
-# NOTE: ETL_SourceSystem, ETL_Brand, ETL_Region are automatically added to ALL
-# business satellite tables by the framework. They are passed through from the
-# source silver satellite and do not need to be listed in attributes.
-# brand and region filter the source satellite rows to the target tenant.
-
+# DESIGN RULES:
+# 1. Column names keep their silver entity-prefix as-is (no aliasing).
+# 2. If a column exists in both vault sat and business sat, source from bsat.
+# 3. Tables are built one-by-one matching the Fabric gold layer definitions.
 
 source_system: salesforce
-record_source: salesforce_business
-target_catalog: bbdatawarehouse_dev
-source_schema: silver
-target_schema: silver
 brand: Bluebeam
 region: US
-
-satellites:
-# Source: restricted satellite - Name and billing/shipping address are PII columns
-# stored in salesforce_sat_account_restricted_bluebeam_us, not the general sat.
-- table_name: salesforce_bsat_accounts_restricted_bluebeam_us
-  source_table: salesforce_sat_accounts_restricted_bluebeam_us
-  parent_key_column: HubAccountHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: AccountNameNormalized
-    source_column: AccountNameNormalized
-    description: Normalized account name for search and matching.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_company_name
-    - name: default_values
-
-  - target_column: AccountBillingStreetNormalized
-    source_column: AccountBillingStreetNormalized
-    description: Standardized billing street address.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_street_address
-    - name: default_values
-
-  - target_column: AccountBillingCityNormalized
-    source_column: AccountBillingCityNormalized
-    description: Standardized billing city.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-  - target_column: AccountBillingStateNormalized
-    source_column: AccountBillingStateNormalized
-    description: Standardized billing state or province.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_state_province
-      args:
-        country_column: AccountBillingCountryNormalized
-    - name: default_values
-
-  - target_column: AccountBillingPostalCodeNormalized
-    source_column: AccountBillingPostalCodeNormalized
-    description: Standardized billing postal code.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_postal
-    - name: default_values
-
-  - target_column: AccountBillingCountryNormalized
-    source_column: AccountBillingCountryNormalized
-    description: Standardized billing country.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-  - target_column: AccountShippingStreetNormalized
-    source_column: AccountShippingStreetNormalized
-    description: Standardized shipping street address.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_street_address
-    - name: default_values
-
-  - target_column: AccountShippingCityNormalized
-    source_column: AccountShippingCityNormalized
-    description: Standardized shipping city.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-  - target_column: AccountShippingStateNormalized
-    source_column: AccountShippingStateNormalized
-    description: Standardized shipping state or province.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_state_province
-      args:
-        country_column: AccountShippingCountryNormalized
-    - name: default_values
-
-  - target_column: AccountShippingPostalCodeNormalized
-    source_column: AccountShippingPostalCodeNormalized
-    description: Standardized shipping postal code.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_postal
-    - name: default_values
-
-  - target_column: AccountShippingCountryNormalized
-    source_column: AccountShippingCountryNormalized
-    description: Standardized shipping country.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-  - target_column: AccountSearchDisplay
-    description: Search-friendly display string.
-    is_active: true
-    transforms:
-    - name: concat_ws
-      args:
-        separator: " | "
-        columns: [AccountNameNormalized, AccountBillingCityNormalized, AccountBillingStateNormalized, AccountBillingCountryNormalized]
-    - name: trim
-    - name: default_values
-
-# Source: restricted satellite - FirstName, LastName, Email are PII columns
-- table_name: salesforce_bsat_contacts_restricted_bluebeam_us
-  source_table: salesforce_sat_contacts_restricted_bluebeam_us
-  parent_key_column: HubContactHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: ContactFirstNameNormalized
-    source_column: ContactFirstNameNormalized
-    description: Normalized contact first name.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: ContactLastNameNormalized
-    source_column: ContactLastNameNormalized
-    description: Normalized contact last name.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: ContactEmailNormalized
-    source_column: ContactEmailNormalized
-    description: Lower-cased email for matching and deduplication.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: lower
-    - name: default_values
-
-  - target_column: ContactSearchDisplay
-    description: Search-friendly contact display string.
-    is_active: true
-    transforms:
-    - name: concat_ws
-      args:
-        separator: " | "
-        columns: [ContactFirstNameNormalized, ContactLastNameNormalized, ContactEmailNormalized]
-    - name: trim
-    - name: default_values
-
-
-- table_name: salesforce_bsat_opportunities_bluebeam_us
-  source_table: salesforce_sat_opportunities_bluebeam_us
-  parent_key_column: HubOpportunityHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: OpportunityNameNormalized
-    source_column: OpportunityNameNormalized
-    description: Normalized opportunity name.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: OpportunityStageNameNormalized
-    source_column: OpportunityStageNameNormalized
-    description: Standardized stage label.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: OpportunitySearchDisplay
-    description: Search-friendly opportunity display string.
-    is_active: true
-    transforms:
-    - name: concat_ws
-      args:
-        separator: " | "
-        columns: [OpportunityNameNormalized, OpportunityStageNameNormalized]
-    - name: trim
-    - name: default_values
-
-  - target_column: OpportunityBookingsDateKey
-    source_column: OpportunityBookingsDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: OpportunityCloseDateKey
-    source_column: OpportunityCloseDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: OpportunityCreatedDateKey
-    source_column: OpportunityCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: OpportunityAmount
-    source_column: OpportunityAmount
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: OpportunityTotalBookingsValue
-    source_column: OpportunityTotalBookingsValue
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: OpportunityYear1BookingsForRollUp
-    source_column: OpportunityYear1BookingsForRollUp
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: OpportunityYear2BookingsForRollUp
-    source_column: OpportunityYear2BookingsForRollUp
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: OpportunityYear3BookingsForRollUp
-    source_column: OpportunityYear3BookingsForRollUp
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-
-# ------------------------------------------------------------------------
-# Source: salesforce_sat_case_restricted_bluebeam_us
-# PII columns for cases (account owner, supplied email/name).
-# Only columns found in vault_config_nexus satellite are included.
-# ------------------------------------------------------------------------
-- table_name: salesforce_bsat_cases_restricted_bluebeam_us
-  source_table: salesforce_sat_cases_restricted_bluebeam_us
-  parent_key_column: HubCaseHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: CaseAccountOwner
-    source_column: CaseAccountOwner
-    description: Account owner name on the case.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: CaseSuppliedEmailNormalized
-    source_column: CaseSuppliedEmailNormalized
-    description: Normalized email supplied by case creator.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: lower
-    - name: default_values
-
-  - target_column: CaseSuppliedNameNormalized
-    source_column: CaseSuppliedNameNormalized
-    description: Normalized name supplied by case creator.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-
-
-# ------------------------------------------------------------------------
-# Source: salesforce_sat_order_restricted_bluebeam_us
-# Billing/shipping address columns (PII) for orders.
-# Follows same normalization pattern as account_restricted.
-# Only columns found in vault_config_nexus satellite are included.
-# ------------------------------------------------------------------------
-- table_name: salesforce_bsat_orders_restricted_bluebeam_us
-  source_table: salesforce_sat_orders_restricted_bluebeam_us
-  parent_key_column: HubOrderHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: OrderBillingStreetNormalized
-    source_column: OrderBillingStreetNormalized
-    description: Standardized billing street address.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_street_address
-    - name: default_values
-
-  - target_column: OrderBillingCityNormalized
-    source_column: OrderBillingCityNormalized
-    description: Standardized billing city.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-  - target_column: OrderBillingStateNormalized
-    source_column: OrderBillingStateNormalized
-    description: Standardized billing state or province.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_state_province
-      args:
-        country_column: OrderBillingCountryNormalized
-    - name: default_values
-
-  - target_column: OrderBillingPostalCodeNormalized
-    source_column: OrderBillingPostalCodeNormalized
-    description: Standardized billing postal code.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_postal
-    - name: default_values
-
-  - target_column: OrderBillingCountryNormalized
-    source_column: OrderBillingCountryNormalized
-    description: Standardized billing country.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-  - target_column: OrderShippingStreetNormalized
-    source_column: OrderShippingStreetNormalized
-    description: Standardized shipping street address.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_street_address
-    - name: default_values
-
-  - target_column: OrderShippingCityNormalized
-    source_column: OrderShippingCityNormalized
-    description: Standardized shipping city.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-  - target_column: OrderShippingStateNormalized
-    source_column: OrderShippingStateNormalized
-    description: Standardized shipping state or province.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_state_province
-      args:
-        country_column: OrderShippingCountryNormalized
-    - name: default_values
-
-  - target_column: OrderShippingPostalCodeNormalized
-    source_column: OrderShippingPostalCodeNormalized
-    description: Standardized shipping postal code.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_postal
-    - name: default_values
-
-  - target_column: OrderShippingCountryNormalized
-    source_column: OrderShippingCountryNormalized
-    description: Standardized shipping country.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-
-# ------------------------------------------------------------------------
-# Source: salesforce_sat_lead_restricted_bluebeam_us
-# PII columns for leads (name, email).
-# Only columns found in vault_config_nexus satellite are included.
-# ------------------------------------------------------------------------
-- table_name: salesforce_bsat_leads_restricted_bluebeam_us
-  source_table: salesforce_sat_leads_restricted_bluebeam_us
-  parent_key_column: HubLeadHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: LeadFirstNameNormalized
-    source_column: LeadFirstNameNormalized
-    description: Normalized lead first name.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: LeadLastNameNormalized
-    source_column: LeadLastNameNormalized
-    description: Normalized lead last name.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: LeadNameNormalized
-    source_column: LeadNameNormalized
-    description: Normalized lead full name.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: LeadEmailNormalized
-    source_column: LeadEmailNormalized
-    description: Normalized lead email address.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: lower
-    - name: default_values
-
-
-# ------------------------------------------------------------------------
-# Source: salesforce_sat_asset_restricted_bluebeam_us
-# Address and geolocation PII columns for assets.
-# Follows normalization pattern from account_restricted + Asset* prefix.
-# Only columns found in vault_config_nexus satellite are included.
-# ------------------------------------------------------------------------
-- table_name: salesforce_bsat_assets_restricted_bluebeam_us
-  source_table: salesforce_sat_assets_restricted_bluebeam_us
-  parent_key_column: HubAssetHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: AssetStreetNormalized
-    source_column: AssetStreetNormalized
-    description: Standardized asset street address.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_street_address
-    - name: default_values
-
-  - target_column: AssetCityNormalized
-    source_column: AssetCityNormalized
-    description: Standardized asset city.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-  - target_column: AssetState
-    source_column: AssetState
-    description: Asset state or province full name.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: AssetStateNormalized
-    source_column: AssetStateNormalized
-    description: Standardized asset state or province code.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_state_province
-      args:
-        country_column: AssetCountryNormalized
-    - name: default_values
-
-  - target_column: AssetPostalCodeNormalized
-    source_column: AssetPostalCodeNormalized
-    description: Standardized asset postal code.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: normalize_postal
-    - name: default_values
-
-  - target_column: AssetCountry
-    source_column: AssetCountry
-    description: Asset country full name.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: initcap
-    - name: default_values
-
-  - target_column: AssetCountryNormalized
-    source_column: AssetCountryNormalized
-    description: Standardized asset country code.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: upper
-    - name: default_values
-
-# ------------------------------------------------------------------------
-# Date and Currency hash-key BSATs
-# Generated from vault satellite date/currency columns.
-# ------------------------------------------------------------------------
-
-- table_name: salesforce_bsat_orders_bluebeam_us
-  source_table: salesforce_sat_orders_bluebeam_us
-  parent_key_column: HubOrderHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: OrderActivatedDateKey
-    source_column: OrderActivatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: OrderCreatedDateKey
-    source_column: OrderCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: OrderEffectiveDateKey
-    source_column: OrderEffectiveDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: OrderEndDateKey
-    source_column: OrderEndDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: OrderCurrencyKey
-    source_column: OrderCurrencyIsoCode
-    is_active: true
-    transforms:
-    - name: currency_to_key
-
-  - target_column: OrderTotalAmount
-    source_column: OrderTotalAmount
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-
-# ------------------------------------------------------------------------
-# Date and Currency hash-key BSATs
-# Generated from vault satellite date/currency columns.
-# ------------------------------------------------------------------------
-
-- table_name: salesforce_bsat_assets_bluebeam_us
-  source_table: salesforce_sat_assets_bluebeam_us
-  parent_key_column: HubAssetHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: AssetCreatedDateKey
-    source_column: AssetCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetCurrentLifecycleEndDateKey
-    source_column: AssetCurrentLifecycleEndDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetInstallDateKey
-    source_column: AssetInstallDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetLifecycleEndDateKey
-    source_column: AssetLifecycleEndDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetLifecycleStartDateKey
-    source_column: AssetLifecycleStartDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetManufactureDateKey
-    source_column: AssetManufactureDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetPurchaseDateKey
-    source_column: AssetPurchaseDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetUsageEndDateKey
-    source_column: AssetUsageEndDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetLastModifiedDateKey
-    source_column: AssetLastModifiedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetLastReferencedDateKey
-    source_column: AssetLastReferencedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetLastViewedDateKey
-    source_column: AssetLastViewedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AssetCurrencyKey
-    source_column: AssetCurrencyIsoCode
-    is_active: true
-    transforms:
-    - name: currency_to_key
-
-  - target_column: AssetLevel
-    source_column: AssetLevel
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: AssetTier
-    source_column: AssetTier
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: AssetQuantity
-    source_column: AssetQuantity
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: AssetPrice
-    source_column: AssetPrice
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: AssetCurrentQuantity
-    source_column: AssetCurrentQuantity
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: AssetCurrentAmount
-    source_column: AssetCurrentAmount
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-
-- table_name: salesforce_bsat_campaigns_bluebeam_us
-  source_table: salesforce_sat_campaigns_bluebeam_us
-  parent_key_column: HubCampaignHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: CampaignCreatedDateKey
-    source_column: CampaignCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: CampaignEndDateKey
-    source_column: CampaignEndDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: CampaignStartDateKey
-    source_column: CampaignStartDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: CampaignActualCost
-    source_column: CampaignActualCost
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: CampaignAmountAllOpportunities
-    source_column: CampaignAmountAllOpportunities
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: CampaignAmountWonOpportunities
-    source_column: CampaignAmountWonOpportunities
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: CampaignBudgetedCost
-    source_column: CampaignBudgetedCost
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: CampaignNumberOfContacts
-    source_column: CampaignNumberOfContacts
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: CampaignNumberOfConvertedLeads
-    source_column: CampaignNumberOfConvertedLeads
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: CampaignNumberOfLeads
-    source_column: CampaignNumberOfLeads
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: CampaignNumberOfOpportunities
-    source_column: CampaignNumberOfOpportunities
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-  - target_column: CampaignNumberOfWonOpportunities
-    source_column: CampaignNumberOfWonOpportunities
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-
-- table_name: salesforce_bsat_cases_bluebeam_us
-  source_table: salesforce_sat_cases_bluebeam_us
-  parent_key_column: HubCaseHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  # added- ID columns, NULL replaced with 'Not Available' sentinel
-  - target_column: Case18DigitId
-    source_column: Case18DigitId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: CaseRecordTypeId
-    source_column: CaseRecordTypeId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: CaseClosedDateKey
-    source_column: CaseClosedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: CaseCreatedDateKey
-    source_column: CaseCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-
-- table_name: salesforce_bsat_events_bluebeam_us
-  source_table: salesforce_sat_events_bluebeam_us
-  parent_key_column: HubEventHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: EventActivityDateKey
-    source_column: EventActivityDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: EventDurationInMinutes
-    source_column: EventDurationInMinutes
-    is_active: true
-    transforms:
-    - name: default_values_measures
-
-
-- table_name: salesforce_bsat_tasks_bluebeam_us
-  source_table: salesforce_sat_tasks_bluebeam_us
-  parent_key_column: HubTaskHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: TaskCreatedDateKey
-    source_column: TaskCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-
-- table_name: salesforce_bsat_leads_bluebeam_us
-  source_table: salesforce_sat_leads_bluebeam_us
-  parent_key_column: HubLeadHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: LeadClosedDateKey
-    source_column: LeadClosedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: LeadCreatedDateKey
-    source_column: LeadCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: LeadDQDateKey
-    source_column: LeadDQDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: LeadTrialDownloadDateKey
-    source_column: LeadTrialDownloadDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-
-- table_name: salesforce_bsat_quotes_bluebeam_us
-  source_table: salesforce_sat_quotes_bluebeam_us
-  parent_key_column: HubQuoteHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: QuoteCreatedDateKey
-    source_column: QuoteCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-
-# added  NEW satellite, fed by Salesforce/silver/notebooks/account_matching_salesforce.py
-# AccountEDWParentId is treated exactly like AccountParentId / AccountUltimateParentId.
-
-  - target_column: QuoteDiscount
-    source_column: QuoteDiscount
-    is_active: true
-    transforms:
-    - name: default_values_measures
-- table_name: salesforce_bsat_account_matching_bluebeam_us
-  source_table: salesforce_account_matching_bluebeam_us
-  parent_key_column: HubAccountHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: AccountEDWParentId
-    source_column: AccountEDWParentId
-    description: De-duplicated parent account id resolved by account matching.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountMatchTier
-    source_column: AccountMatchTier
-    description: How AccountEDWParentId was resolved, for auditing.
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-
-# added  NEW satellite (there was no users bsat)
-- table_name: salesforce_bsat_users_bluebeam_us
-  source_table: salesforce_sat_users_bluebeam_us
-  parent_key_column: HubUserHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: UserRoleId
-    source_column: UserRoleId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-
-- table_name: salesforce_bsat_campaign_members_bluebeam_us
-  source_table: salesforce_sat_campaign_members_bluebeam_us
-  parent_key_column: HubCampaignMemberHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: CampaignMemberCreatedDateKey
-    source_column: CampaignMemberCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-
-- table_name: salesforce_bsat_accounts_bluebeam_us
-  source_table: salesforce_sat_accounts_bluebeam_us
-  parent_key_column: HubAccountHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  # added  ID columns, NULL replaced with 'Not Available' sentinel
-  - target_column: AccountExternalId
-    source_column: AccountExternalId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountId18
-    source_column: AccountId18
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountCSMOwnerId
-    source_column: AccountCSMOwnerId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountLegacySalesforceId
-    source_column: AccountLegacySalesforceId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountLicensingId
-    source_column: AccountLicensingId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountNetsuiteExternalId
-    source_column: AccountNetsuiteExternalId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountOwnerId
-    source_column: AccountOwnerId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountParentId
-    source_column: AccountParentId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountResellerId
-    source_column: AccountResellerId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountUltimateParentId
-    source_column: AccountUltimateParentId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: AccountCreatedDateKey
-    source_column: AccountCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: AccountCurrencyKey
-    source_column: AccountCurrencyIsoCode
-    is_active: true
-    transforms:
-    - name: currency_to_key
-
-  - target_column: AccountAnnualRevenue
-    source_column: AccountAnnualRevenue
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: AccountChannelDiscountNewBusiness
-    source_column: AccountChannelDiscountNewBusiness
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: AccountNumberOfEmployees
-    source_column: AccountNumberOfEmployees
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: AccountUpcomingAutoRenewals
-    source_column: AccountUpcomingAutoRenewals
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: AccountUpcomingSubscriptions
-    source_column: AccountUpcomingSubscriptions
-    is_active: true
-    transforms:
-    - name: default_values
-
-
-- table_name: salesforce_bsat_products_bluebeam_us
-  source_table: salesforce_sat_products_bluebeam_us
-  parent_key_column: HubProductHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  # added ID columns, NULL replaced with 'Not Available' sentinel
-  - target_column: ProductBasedOnId
-    source_column: ProductBasedOnId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductBillingPolicyId
-    source_column: ProductBillingPolicyId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductExternalDataSourceId
-    source_column: ProductExternalDataSourceId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductExternalId
-    source_column: ProductExternalId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductLegacySalesforceId
-    source_column: ProductLegacySalesforceId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  # source_column matches the vault sat spelling; target_column matches what gold
-  # asks for. This bsat is where the casing inconsistency gets normalised.
-  - target_column: ProductNetSuiteId
-    source_column: ProductNetSuiteID
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductNetSuiteRenewalId
-    source_column: ProductNetsuiteRenewalId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductTaxPolicyId
-    source_column: ProductTaxPolicyId
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductCreatedById
-    source_column: ProductCreatedById
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductLastModifiedById
-    source_column: ProductLastModifiedById
-    is_active: true
-    transforms:
-    - name: trim
-    - name: default_values
-
-  - target_column: ProductAvailabilityDateKey
-    source_column: ProductAvailabilityDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: ProductCreatedDateKey
-    source_column: ProductCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: ProductDiscontinuedDateKey
-    source_column: ProductDiscontinuedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: ProductEndOfLifeDateKey
-    source_column: ProductEndOfLifeDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: ProductLastModifiedDateKey
-    source_column: ProductLastModifiedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: ProductLastReferencedDateKey
-    source_column: ProductLastReferencedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: ProductLastViewedDateKey
-    source_column: ProductLastViewedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-
-  - target_column: ProductCurrencyKey
-    source_column: ProductCurrencyIsoCode
-    is_active: true
-    transforms:
-    - name: currency_to_key
-      args:
-        sentinel: unknown
-
-  - target_column: ProductBBSortOrder
-    source_column: ProductBBSortOrder
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: ProductGLAccountNumber
-    source_column: ProductGLAccountNumber
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: ProductImpliedUserFactor
-    source_column: ProductImpliedUserFactor
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: ProductNumberOfQuantityInstallments
-    source_column: ProductNumberOfQuantityInstallments
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: ProductTier
-    source_column: ProductTier
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: ProductUplift
-    source_column: ProductUplift
-    is_active: true
-    transforms:
-    - name: default_values
-
-  - target_column: ProductUserFactor
-    source_column: ProductUserFactor
-    is_active: true
-    transforms:
-    - name: default_values
-
-
-- table_name: salesforce_bsat_contracts_bluebeam_us
-  source_table: salesforce_sat_contracts_bluebeam_us
-  parent_key_column: HubContractHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: ContractStartDateKey
-    source_column: ContractStartDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-      args:
-        sentinel: unknown
-
-  - target_column: ContractEndDateKey
-    source_column: ContractEndDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-      args:
-        sentinel: unknown
-
-
-- table_name: salesforce_bsat_account_contact_relations_bluebeam_us
-  source_table: salesforce_sat_account_contact_relations_bluebeam_us
-  parent_key_column: HubAccountContactRelationHashKey
-  filter: "1=1"
-  is_active: true
-  attributes:
-  - target_column: AccountContactRelationCreatedDateKey
-    source_column: AccountContactRelationCreatedDate
-    is_active: true
-    transforms:
-    - name: date_to_key
-      args:
-        sentinel: unknown
-
+target_catalog: bbdatawarehouse_dev
+source_schema: silver
+target_schema: gold
+
+tables:
+
+# -----------------------------
+# DIMENSIONS
+#----------------------------
+
+  - table_name: salesforce_dim_accounts
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_accounts_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: AccountRecordTypeName
+          - source: AccountSource
+          - source: AccountActiveSubscription
+          - source: AccountAutoCharge
+          - source: AccountAutoQuoted
+          - source: AccountAutoRenewOptOutReason
+          - source: AccountChannelProgramLevelName
+          - source: AccountChannelProgramName
+          - source: AccountCompanySize
+          - source: AccountConvertedFromLead
+          - source: AccountCreatedDate
+          - source: AccountHealth
+          - source: AccountCSMOwnerName
+          - source: AccountCurrencyIsoCode
+          - source: AccountIndustry
+          - source: AccountIsCustomerPortal
+          - source: AccountIsPartner
+          - source: AccountOwnerName
+          - source: AccountIsPartnerAccount
+          - source: AccountPartnerName
+          - source: AccountPartnerLevel
+          - source: AccountRegion
+          - source: AccountSellingSubTeam
+          - source: AccountSellingTeam
+          - source: AccountStatus
+          - source: AccountIsStrategic
+          - source: AccountSubIndustry
+          - source: AccountSubsidiary
+          - source: AccountIsTest
+          - source: AccountTier
+          - source: AccountType
+          - source: AccountSystemModstamp
+      - name: salesforce_bsat_accounts_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: AccountAnnualRevenue
+          - source: AccountChannelDiscountNewBusiness
+          - source: AccountNumberOfEmployees
+          - source: AccountUpcomingAutoRenewals
+          - source: AccountUpcomingSubscriptions
+      - name: salesforce_bsat_accounts_bluebeam_us   # added - ID columns now sourced from bsat (NULL -> 'Not Available')
+        satellite_type: business
+        columns:
+          - source: AccountExternalId
+          - source: AccountId18
+          - source: AccountCSMOwnerId
+          - source: AccountLegacySalesforceId
+          - source: AccountLicensingId
+          - source: AccountNetsuiteExternalId
+          - source: AccountOwnerId
+          - source: AccountParentId
+          - source: AccountResellerId
+          - source: AccountUltimateParentId
+      - name: salesforce_bsat_accounts_restricted_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: AccountNameNormalized
+          - source: AccountSearchDisplay
+      # added at Sep 8 - de-duplicated parent from account matching.
+      # Sits alongside AccountParentId (raw Salesforce) and
+      # AccountUltimateParentId, and is treated the same way.
+      - name: salesforce_bsat_account_matching_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: AccountEDWParentId
+
+  - table_name: salesforce_dim_assets
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_assets
+    key_column: AssetKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_assets_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: AssetConsequenceOfFailure
+          - source: AssetCustomerAccess
+          - source: AssetDescription
+          - source: AssetDigitalAssetStatus
+          - source: AssetDoesAutomaticallyCharge
+          - source: AssetDoesAutomaticallyRenew
+          - source: AssetExternalIdentifier
+          - source: AssetHasLifecycleManagement
+          - source: AssetIsCompetitorProduct
+          - source: AssetIsInternal
+          - source: AssetMarkedForMergeIntoAsset
+          - source: AssetName
+          - source: AssetPlanName
+          - source: AssetSerialNumber
+          - source: AssetStatus
+          - source: AssetStatusReason
+          - source: AssetStatusStandard
+          - source: AssetUuid
+          - source: AssetIsDeleted
+      - name: salesforce_bsat_assets_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: AssetLevel
+          - source: AssetTier
+
+  - table_name: salesforce_dim_campaigns
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_campaigns
+    key_column: CampaignKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_campaigns_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: CampaignName
+          - source: CampaignStatus
+          - source: CampaignType
+          - source: CampaignSystemModstamp
+
+  - table_name: salesforce_dim_cases
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_cases
+    key_column: CaseKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_cases_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: CaseNumber
+          - source: CaseIsClosed
+          - source: CaseIsEscalated
+          - source: CaseOrigin
+          - source: CasePriority
+          - source: CaseReason
+          - source: CaseStatus
+          - source: CaseSubject
+          - source: CaseSubTeam
+          - source: CaseTeamDefault
+          - source: CaseType
+          - source: CaseIsDeleted
+          - source: CaseSystemModstamp
+      - name: salesforce_bsat_cases_bluebeam_us # added - ID columns now sourced from bsat (NULL -> 'Not Available')
+        satellite_type: business
+        columns:
+          - source: Case18DigitId
+          - source: CaseRecordTypeId
+
+
+  - table_name: salesforce_dim_cases_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_cases
+    key_column: CaseKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      # All columns available in bsat (has initcap/lower applied)
+      - name: salesforce_bsat_cases_restricted_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: CaseAccountOwner
+          - source: CaseSuppliedEmailNormalized
+          - source: CaseSuppliedNameNormalized
+
+
+  - table_name: salesforce_dim_events
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_events
+    key_column: EventKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_events_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: EventDescription
+          - source: EventSystemModstamp
+
+  - table_name: salesforce_dim_contracts
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_contracts
+    key_column: ContractKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_contracts_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: ContractStartDate
+          - source: ContractEndDate
+          - source: ContractSystemModstamp
+
+  - table_name: salesforce_dim_leads
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_leads
+    key_column: LeadKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_leads_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: LeadClosedDate
+          - source: LeadClosedReason
+          - source: LeadCompany
+          - source: LeadCompanySize
+          - source: LeadCountryCode
+          - source: LeadCreatedDate
+          - source: LeadDomainMatchedAccount
+          - source: LeadDQDate
+          - source: LeadExistingCustomer
+          - source: LeadFirstOffer
+          - source: LeadFirstOfferType
+          - source: LeadIndustry
+          - source: LeadOwnerName
+          - source: LeadOwnerTeam
+          - source: LeadSource
+          - source: LeadMostRecentOffer
+          - source: LeadMostRecentSource
+          - source: LeadMQLOffer
+          - source: LeadMQLSource
+          - source: LeadRegion
+          - source: LeadStage
+          - source: LeadStageLastCustomer
+          - source: LeadStageLastMarketingIdentified
+          - source: LeadStageLastMarketingQualified
+          - source: LeadStageLastNurture
+          - source: LeadStageLastRejected
+          - source: LeadStageLastSalesAccepted
+          - source: LeadStageLastSalesQualified
+          - source: LeadState
+          - source: LeadTestRecord
+          - source: LeadTrialDownloadDate
+          - source: LeadSystemModstamp
+
+  - table_name: salesforce_dim_leads_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_leads
+    key_column: LeadKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      # All columns from bsat (has initcap/lower applied)
+      - name: salesforce_bsat_leads_restricted_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: LeadFirstNameNormalized
+          - source: LeadLastNameNormalized
+          - source: LeadNameNormalized
+          - source: LeadEmailNormalized
+
+  - table_name: salesforce_dim_opportunities
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opportunities
+    key_column: OpportunityKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_opportunities_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: OpportunityCountry
+          - source: OpportunityDescription
+          - source: OpportunityForecastCategory
+          - source: OpportunityForecastCategoryName
+          - source: OpportunityManagerJudgement
+          - source: OpportunityType
+          - source: OpportunitySellingSubTeam
+          - source: OpportunitySellingTeam
+          - source: OpportunitySystemModstamp
+      # Prefer bsat for Name/StageName (has initcap applied)
+      - name: salesforce_bsat_opportunities_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: OpportunityNameNormalized
+          - source: OpportunityStageNameNormalized
+
+  - table_name: salesforce_dim_orders
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_orders
+    key_column: OrderKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_orders_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: OrderActivatedDate
+          - source: OrderAttributionOwner
+          - source: OrderAttributionSellingSubTeam
+          - source: OrderAttributionSellingTeam
+          - source: OrderLegacySalesforceNumber
+          - source: OrderStatus
+          - source: OrderType
+          - source: OrderSystemModstamp
+
+  - table_name: salesforce_dim_orders_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_orders
+    key_column: OrderKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      # Fabric used AddressKey FKs to shared dim_addresses.
+      # Our equivalent: inline address columns from bsat (normalize transforms applied).
+      - name: salesforce_bsat_orders_restricted_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: OrderBillingStreetNormalized
+          - source: OrderBillingCityNormalized
+          - source: OrderBillingStateNormalized
+          - source: OrderBillingPostalCodeNormalized
+          - source: OrderBillingCountryNormalized
+          - source: OrderShippingStreetNormalized
+          - source: OrderShippingCityNormalized
+          - source: OrderShippingStateNormalized
+          - source: OrderShippingPostalCodeNormalized
+          - source: OrderShippingCountryNormalized
+
+  - table_name: salesforce_dim_quotes
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_quotes
+    key_column: QuoteKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_quotes_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: QuoteCreatedDate
+          - source: QuoteSystemModstamp
+      - name: salesforce_bsat_quotes_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: QuoteDiscount
+
+  - table_name: salesforce_dim_tasks
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_tasks
+    key_column: TaskKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_tasks_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: TaskCreatedDate
+          - source: TaskSubtype
+          - source: TaskSystemModstamp
+
+  - table_name: salesforce_dim_users
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_users
+    key_column: UserKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_users_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: UserSubTeam
+          - source: UserSellingTeam
+          - source: UserSystemModstamp
+
+  - table_name: salesforce_dim_users_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_users
+    key_column: UserKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_users_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: UserName
+          - source: UserTitle
+          - source: UserUsername
+          - source: UserSystemModstamp
+      - name: salesforce_bsat_users_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: UserRoleId
+
+  - table_name: salesforce_dim_groups
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_groups
+    key_column: GroupKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_groups_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: GroupName
+          - source: GroupDeveloperName
+          - source: GroupType
+          - source: GroupSystemModstamp
+
+  - table_name: salesforce_dim_campaign_members
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_campaign_members
+    key_column: CampaignMemberKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_campaign_members_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: CampaignMemberStatus
+          - source: CampaignMemberCountry
+          - source: CampaignMemberType
+          - source: CampaignMemberUTMCampaign
+          - source: CampaignMemberUTMContent
+          - source: CampaignMemberUTMMedium
+          - source: CampaignMemberUTMSource
+          - source: CampaignMemberUTMTerm
+          - source: CampaignMemberSystemModstamp
+
+  - table_name: salesforce_dim_products
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_products
+    key_column: ProductKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_products_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: ProductApprovalsRequired
+          - source: ProductAutoRenewEligible
+          - source: ProductAvailabilityDate
+          - source: ProductAvailabletoAmendOnWebstore
+          - source: ProductAvailabletoPurchaseNewOnWebstore
+          - source: ProductAvailabletoViewonWebstore
+          - source: ProductAvaB2blexTaxCode
+          - source: ProductAvaB2blexUpc
+          - source: ProductAvaMapperAutoClassify
+          - source: ProductAvaMapperHsCodeAuto
+          - source: ProductAvaMapperHsStatusMessage
+          - source: ProductBbCapabilities
+          - source: ProductBBIsPopularProduct
+          - source: ProductBBProductDescription
+          - source: ProductBBProductName
+          - source: ProductBBSubscriptionProductType
+          - source: ProductCanbeFulfilledReceived
+          - source: ProductCanRenewOnWebstore
+          - source: ProductCanUseQuantitySchedule
+          - source: ProductConfigureDuringSale
+          - source: ProductCreatedDate
+          - source: ProductCurrencyIsoCode
+          - source: ProductDeferredRevenueAccount
+          - source: ProductDescription
+          - source: ProductDiscontinuedDate
+          - source: ProductDisplayUrl
+          - source: ProductEndOfLifeDate
+          - source: ProductFamily
+          - source: ProductForecastGroupAdaptive
+          - source: ProductGLAccountName
+          - source: ProductHelpText
+          - source: ProductIncludeChildren
+          - source: ProductIncomeAccount
+          - source: ProductIsActive
+          - source: ProductIsArchived
+          - source: ProductIsAssetizable
+          - source: ProductIsSoldOnlyWithOtherProds
+          - source: ProductLicensingSystem
+          - source: ProductName
+          - source: ProductNewExistingUser
+          - source: ProductNewOrLegacy
+          - source: ProductNISGLAccountName
+          - source: ProductPartnerProduct
+          - source: ProductPlanName
+          - source: ProductPricingProcedureIdentifier
+          - source: ProductProductClass
+          - source: ProductProductCode
+          - source: ProductProductLine
+          - source: ProductProductPurpose
+          - source: ProductQuantityInstallmentPeriod
+          - source: ProductQuantityScheduleType
+          - source: ProductQuantityUnitOfMeasure
+          - source: ProductRenewalType
+          - source: ProductReportingCategory
+          - source: ProductSpecificationType
+          - source: ProductStockKeepingUnit
+          - source: ProductSubsidiary
+          - source: ProductSyncERPSystem
+          - source: ProductType
+          - source: ProductUD1
+          - source: ProductIsDeleted
+          - source: ProductLastModifiedDate
+          - source: ProductLastReferencedDate
+          - source: ProductLastViewedDate
+          - source: ProductSystemModstamp
+      - name: salesforce_bsat_products_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: ProductBasedOnId
+          - source: ProductBillingPolicyId
+          - source: ProductExternalDataSourceId
+          - source: ProductExternalId
+          - source: ProductLegacySalesforceId
+          - source: ProductNetSuiteId
+          - source: ProductNetSuiteRenewalId
+          - source: ProductTaxPolicyId
+          - source: ProductCreatedById
+          - source: ProductLastModifiedById
+          - source: ProductBBSortOrder
+          - source: ProductGLAccountNumber
+          - source: ProductImpliedUserFactor
+          - source: ProductNumberOfQuantityInstallments
+          - source: ProductTier
+          - source: ProductUplift
+          - source: ProductUserFactor
+
+
+ #-------------------------------------------
+ # DIMENSIONS - RESTRICTED (for PII/PHI data)
+ #-----------------------------------------
+
+  - table_name: salesforce_dim_contacts_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_contacts
+    key_column: ContactKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      # All columns available in bsat (has initcap/lower applied)
+      - name: salesforce_bsat_contacts_restricted_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: ContactFirstNameNormalized
+          - source: ContactLastNameNormalized
+          - source: ContactEmailNormalized
+          - source: ContactSearchDisplay
+
+  - table_name: salesforce_dim_accounts_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      # All columns available in bsat (has normalize transforms)
+      - name: salesforce_bsat_accounts_restricted_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: AccountNameNormalized
+          - source: AccountBillingCityNormalized
+          - source: AccountBillingStateNormalized
+          - source: AccountBillingCountryNormalized
+          - source: AccountSearchDisplay
+
+#---------------------------------
+# FACTS
+#---------------------------------------------
+
+  - table_name: salesforce_fact_orders
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_orders
+    key_column: OrderKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_orders_bluebeam_us
+        satellite_type: vault
+        columns: []
+      - name: salesforce_bsat_orders_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: OrderActivatedDateKey
+          - source: OrderEffectiveDateKey
+          - source: OrderEndDateKey
+          - source: OrderCreatedDateKey
+          - source: OrderCurrencyKey
+          # Measures
+          - source: OrderTotalAmount
+
+    foreign_keys:
+      - link: salesforce_link_order_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_order_account_bluebeam
+        join_type: LEFT
+      - link: salesforce_link_order_opportunity
+        hub_key: HubOpportunityHashKey
+        fk_column: OpportunityKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_order_opportunity_bluebeam
+        join_type: LEFT
+      - link: salesforce_link_order_activated_by
+        hub_key: HubUserHashKey
+        fk_column: ActivatedByUserKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_order_owner
+        hub_key: HubUserHashKey
+        fk_column: OwnerUserKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_order_ship_to_contact
+        hub_key: HubContactHashKey
+        fk_column: ShipToContactKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_order_bill_to_contact
+        hub_key: HubContactHashKey
+        fk_column: BillToContactKey
+        driving_key: false
+        join_type: LEFT
+
+
+  - table_name: salesforce_fact_assets
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_assets
+    key_column: AssetKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_assets_bluebeam_us
+        satellite_type: vault
+        columns: []
+      - name: salesforce_bsat_assets_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: AssetPurchaseDateKey
+          - source: AssetCreatedDateKey
+          - source: AssetLastModifiedDateKey
+          - source: AssetInstallDateKey
+          - source: AssetUsageEndDateKey
+          - source: AssetLifecycleStartDateKey
+          - source: AssetLifecycleEndDateKey
+          - source: AssetCurrencyKey
+          # Measures
+          - source: AssetQuantity
+          - source: AssetPrice
+          - source: AssetCurrentQuantity
+          - source: AssetCurrentAmount
+    foreign_keys:
+      - link: salesforce_link_asset_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_asset_product
+        hub_key: HubProductHashKey
+        fk_column: ProductKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_asset_contact
+        hub_key: HubContactHashKey
+        fk_column: ContactKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_asset_owner
+        hub_key: HubUserHashKey
+        fk_column: OwnerUserKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_asset_created_by
+        hub_key: HubUserHashKey
+        fk_column: CreatedByUserKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_asset_modified_by
+        hub_key: HubUserHashKey
+        fk_column: LastModifiedByUserKey
+        driving_key: false
+        join_type: LEFT
+
+  - table_name: salesforce_fact_campaign_members
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_campaign_members
+    key_column: CampaignMemberKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_campaign_members_bluebeam_us
+        satellite_type: vault
+        columns:
+          # Measure
+          - source: CampaignMemberCount
+            transform: "1"
+      - name: salesforce_bsat_campaign_members_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: CampaignMemberCreatedDateKey
+    foreign_keys:
+      - link: salesforce_link_campaign_member_campaign
+        hub_key: HubCampaignHashKey
+        fk_column: CampaignKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_campaign_member_contact
+        hub_key: HubContactHashKey
+        fk_column: ContactKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_campaign_member_lead
+        hub_key: HubLeadHashKey
+        fk_column: LeadKey
+        driving_key: false
+        join_type: LEFT
+
+
+  - table_name: salesforce_fact_campaigns
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_campaigns
+    key_column: CampaignKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_campaigns_bluebeam_us
+        satellite_type: vault
+        columns: []
+      - name: salesforce_bsat_campaigns_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: CampaignCreatedDateKey
+          - source: CampaignStartDateKey
+          - source: CampaignEndDateKey
+          # Measures
+          - source: CampaignActualCost
+          - source: CampaignAmountAllOpportunities
+          - source: CampaignAmountWonOpportunities
+          - source: CampaignBudgetedCost
+          - source: CampaignNumberOfContacts
+          - source: CampaignNumberOfConvertedLeads
+          - source: CampaignNumberOfLeads
+          - source: CampaignNumberOfOpportunities
+          - source: CampaignNumberOfWonOpportunities
+
+  - table_name: salesforce_fact_cases
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_cases
+    key_column: CaseKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_cases_bluebeam_us
+        satellite_type: vault
+        columns:
+          # Measure
+          - source: CaseCount
+            transform: "1"
+      - name: salesforce_bsat_cases_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: CaseCreatedDateKey
+          - source: CaseClosedDateKey
+    foreign_keys:
+      - link: salesforce_link_case_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: true
+        join_type: LEFT
+      - link: salesforce_link_case_contact
+        hub_key: HubContactHashKey
+        fk_column: ContactKey
+        driving_key: true
+        join_type: LEFT
+      - link: salesforce_link_case_owner
+        hub_key: HubUserHashKey
+        fk_column: OwnerUserKey
+        driving_key: true
+        join_type: LEFT
+      - link: salesforce_link_case_owner_group
+        hub_key: HubGroupHashKey
+        fk_column: OwnerGroupKey
+        driving_key: true
+        join_type: LEFT
+
+  - table_name: salesforce_fact_contracts
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_contracts
+    key_column: ContractKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_contracts_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: ContractStartDateKey
+          - source: ContractEndDateKey
+    foreign_keys:
+      - link: salesforce_link_contract_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        join_type: LEFT
+
+  - table_name: salesforce_fact_account_contact_relations
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_account_contact_relations
+    key_column: AccountContactRelationKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_account_contact_relations_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: AccountContactRelationCreatedDateKey
+    foreign_keys:
+      - link: salesforce_link_account_contact_relation_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_account_contact_relation_contact
+        hub_key: HubContactHashKey
+        fk_column: ContactKey
+        driving_key: false
+        join_type: LEFT
+
+  - table_name: salesforce_fact_events
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_events
+    key_column: EventKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_events_bluebeam_us
+        satellite_type: vault
+        columns: []
+      - name: salesforce_bsat_events_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: EventActivityDateKey
+          # Measures
+          - source: EventDurationInMinutes
+    foreign_keys:
+      - link: salesforce_link_event_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        join_type: LEFT
+
+  - table_name: salesforce_fact_opportunities
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opportunities
+    key_column: OpportunityKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_opportunities_bluebeam_us
+        satellite_type: vault
+        columns: []
+      - name: salesforce_bsat_opportunities_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: OpportunityBookingsDateKey
+          - source: OpportunityCloseDateKey
+          - source: OpportunityCreatedDateKey
+          # Measures
+          - source: OpportunityAmount
+          - source: OpportunityTotalBookingsValue
+          - source: OpportunityYear1BookingsForRollUp
+          - source: OpportunityYear2BookingsForRollUp
+          - source: OpportunityYear3BookingsForRollUp
+    foreign_keys:
+      - link: salesforce_link_opportunity_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_bluebeam
+        join_type: LEFT
+      - link: salesforce_link_opportunity_campaign
+        hub_key: HubCampaignHashKey
+        fk_column: CampaignKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_campaign_bluebeam
+        join_type: LEFT
+      - link: salesforce_link_opportunity_owner
+        hub_key: HubUserHashKey
+        fk_column: OwnerUserKey
+        driving_key: false
+        join_type: LEFT
+
+  - table_name: salesforce_fact_tasks
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_tasks
+    key_column: TaskKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_tasks_bluebeam_us
+        satellite_type: vault
+        columns:
+          # Measure
+          - source: TaskCount
+            transform: "1"
+      - name: salesforce_bsat_tasks_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: TaskCreatedDateKey
+    foreign_keys:
+      - link: salesforce_link_task_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        join_type: LEFT
+
+  - table_name: salesforce_fact_quotes
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_quotes
+    key_column: QuoteKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_quotes_bluebeam_us
+        satellite_type: vault
+        columns: []
+      - name: salesforce_bsat_quotes_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: QuoteCreatedDateKey
+          # Measures
+          - source: QuoteDiscount
+    foreign_keys:
+      - link: salesforce_link_quote_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        join_type: LEFT
+      - link: salesforce_link_quote_opportunity
+        hub_key: HubOpportunityHashKey
+        fk_column: OpportunityKey
+        driving_key: false
+        join_type: LEFT
+
+  - table_name: salesforce_fact_leads_relationships
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_leads
+    key_column: LeadKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_leads_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: LeadCreatedDateKey
+    foreign_keys:
+      - link: salesforce_link_lead_contact
+        hub_key: HubContactHashKey
+        fk_column: ContactKey
+        driving_key: true
+        join_type: LEFT
+      - link: salesforce_link_lead_opportunity
+        hub_key: HubOpportunityHashKey
+        fk_column: OpportunityKey
+        driving_key: true
+        join_type: LEFT
+      - link: salesforce_link_lead_owner
+        hub_key: HubUserHashKey
+        fk_column: OwnerUserKey
+        driving_key: true
+        join_type: LEFT
+      - link: salesforce_link_lead_reseller
+        hub_key: HubAccountHashKey
+        fk_column: ResellerAccountKey
+        driving_key: true
+        join_type: LEFT
+
+  - table_name: salesforce_fact_account_addresses
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_accounts_restricted_bluebeam_us
+        satellite_type: business
+        columns:
+          # Billing address
+          - source: AccountBillingStreetNormalized
+          - source: AccountBillingCityNormalized
+          - source: AccountBillingStateNormalized
+          - source: AccountBillingPostalCodeNormalized
+          - source: AccountBillingCountryNormalized
+          # Shipping address
+          - source: AccountShippingStreetNormalized
+          - source: AccountShippingCityNormalized
+          - source: AccountShippingStateNormalized
+          - source: AccountShippingPostalCodeNormalized
+          - source: AccountShippingCountryNormalized
+
+  - table_name: salesforce_fact_contact_addresses
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_contacts
+    key_column: ContactKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_contacts_restricted_bluebeam_us
+        satellite_type: vault
+        columns:
+          # Mailing address
+          - source: ContactMailingStreet
+          - source: ContactMailingCity
+          - source: ContactMailingState
+          - source: ContactMailingPostalCode
+          - source: ContactMailingStateCode
+          - source: ContactMailingCountryCode
+          # Other address
+          - source: ContactOtherStreet
+          - source: ContactOtherCity
+          - source: ContactOtherStateCode
+          - source: ContactOtherPostalCode
+          - source: ContactOtherCountryCode
+
+#---------------------------------------------
+# HISTORICAL (SCD Type 2)
+# Uses vault (raw) to track actual data changes over time.
+# ------------------------------------------------------------------
+
+  - table_name: salesforce_dim_accounts_historical
+    table_type: dim
+    load_type: historical
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_accounts_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: AccountIndustry
+
+  - table_name: salesforce_dim_accounts_restricted_historical
+    table_type: dim
+    load_type: historical
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_accounts_restricted_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: AccountNameNormalized
+          - source: AccountBillingCityNormalized
+          - source: AccountBillingStateNormalized
+          - source: AccountBillingCountryNormalized
+
+  - table_name: salesforce_fact_orders_historical
+    table_type: fact
+    load_type: historical
+    load_mode: full_refresh
+    hub: salesforce_hub_orders
+    key_column: OrderKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_sat_orders_bluebeam_us
+        satellite_type: vault
+        columns:
+          - source: OrderNumber
+          - source: OrderStatus
+          - source: OrderTotalAmount
+          - source: OrderEffectiveDate
+    foreign_keys:
+      - link: salesforce_link_order_account
+        hub_key: HubAccountHashKey
+        fk_column: AccountKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_order_account_bluebeam
+        join_type: LEFT
+      - link: salesforce_link_order_opportunity
+        hub_key: HubOpportunityHashKey
+        fk_column: OpportunityKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_order_opportunity_bluebeam
+        join_type: LEFT
