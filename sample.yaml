@@ -1,1 +1,57 @@
+# Chargebee Silver Vault Load Job
+# Loads append-only bronze into Data Vault 2.0 silver (hubs, links, satellites), then business satellites
+# Sequential execution: hubs → links → satellites → close versions → business satellites
+# Silver reads YAML directly at runtime — no metadata tables or sync step required.
+# No reconcile_ids task: Chargebee bronze has no _ids tables (the bronze job has no reconcile_ids flow).
+# vault_load_mode = reconcile only right after a bronze reconcile (full pull) - bronze keeps 7 days only.
+resources:
+  jobs:
+    chargebee_silver_vault:
+      name: "chargebee-silver-vault-${bundle.target}"
+      max_concurrent_runs: 1
+      parameters:
+        - name: catalog_name
+          default: ${var.catalog_name}
+        - name: vault_config_path
+          default: ${workspace.file_path}/Chargebee/silver/config/vault_config_chargebee.yaml
+        - name: entity_type
+          default: all
+        - name: bsat_config_path
+          default: ${workspace.file_path}/Chargebee/silver/config/business_satellite_config_chargebee.yaml
+        - name: vault_load_mode
+          default: incremental
+      environments:
+        - environment_key: run_env
+          spec:
+            environment_version: "5"
+            dependencies:
+              - -r "${workspace.file_path}/Environments/requirements.txt"
+              - ${workspace.file_path}/Libraries/framework
+      tasks:
+        - task_key: load_vault
+          environment_key: run_env
+          max_retries: 3
+          min_retry_interval_millis: 120000
+          retry_on_timeout: false
+          notebook_task:
+            notebook_path: ../../../Shared/notebooks/framework/bronze_to_silver_vault.py
+            base_parameters:
+              config_path: "{{job.parameters.vault_config_path}}"
+              catalog_name: "{{job.parameters.catalog_name}}"
+              entity_type: "{{job.parameters.entity_type}}"
+              load_mode: "{{job.parameters.vault_load_mode}}"
+
+        - task_key: load_business_satellites
+          depends_on:
+            - task_key: load_vault
+          run_if: NONE_FAILED
+          environment_key: run_env
+          max_retries: 3
+          min_retry_interval_millis: 120000
+          retry_on_timeout: false
+          notebook_task:
+            notebook_path: ../../../Shared/notebooks/framework/silver_to_business_satellite.py
+            base_parameters:
+              config_path: "{{job.parameters.bsat_config_path}}"
+              catalog_name: "{{job.parameters.catalog_name}}"
 
