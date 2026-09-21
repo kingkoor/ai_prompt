@@ -1,1 +1,57 @@
+# Chargebee Gold Layer Load Job
+# dim_address_runner inserts new AddressKey rows into the shared dim_addresses table,
+# then load_gold builds tenant-scoped dim/fact tables from silver-vault using
+# YAML-driven query generation (gold_metadata framework).
+# Config parsed directly from YAML at runtime — no metadata tables required.
+resources:
+  jobs:
+    chargebee_gold:
+      name: "chargebee-gold-${bundle.target}"
+      max_concurrent_runs: 3
+      parameters:
+        - name: catalog_name
+          default: ${var.catalog_name}
+        - name: gold_config_path
+          default: ${workspace.file_path}/Chargebee/gold/config/gold_config_chargebee.yaml
+        - name: dim_addresses_config_path
+          default: ${workspace.file_path}/Chargebee/gold/config/dim_addresses_config_chargebee.yaml
+        - name: vault_config_path
+          default: ${workspace.file_path}/Chargebee/silver/config/vault_config_chargebee.yaml
+        - name: bsat_config_path
+          default: ${workspace.file_path}/Chargebee/silver/config/business_satellite_config_chargebee.yaml
+        - name: table_filter
+          default: ""
+      environments:
+        - environment_key: run_env
+          spec:
+            environment_version: "5"
+            dependencies:
+              - -r "${workspace.file_path}/Environments/requirements.txt"
+              - ${workspace.file_path}/Libraries/framework
+      tasks:
+        - task_key: dim_address_runner
+          environment_key: run_env
+          retry_on_timeout: false
+          max_retries: 3
+          min_retry_interval_millis: 120000
+          notebook_task:
+            notebook_path: ../../../Shared/notebooks/gold/dim_addresses_runner.py
+            base_parameters:
+              catalog_name: "{{job.parameters.catalog_name}}"
+              config_path: "{{job.parameters.dim_addresses_config_path}}"
 
+        - task_key: load_gold
+          depends_on:
+            - task_key: dim_address_runner
+          environment_key: run_env
+          retry_on_timeout: false
+          max_retries: 3
+          min_retry_interval_millis: 120000
+          notebook_task:
+            notebook_path: ../../../Shared/notebooks/framework/silver_to_gold.py
+            base_parameters:
+              gold_config_path: "{{job.parameters.gold_config_path}}"
+              catalog_name: "{{job.parameters.catalog_name}}"
+              vault_config_path: "{{job.parameters.vault_config_path}}"
+              bsat_config_path: "{{job.parameters.bsat_config_path}}"
+              table_filter: "{{job.parameters.table_filter}}"
