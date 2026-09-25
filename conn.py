@@ -26,3 +26,8 @@ WHERE trim(st) <> '' AND NOT upper(trim(st)) RLIKE '^[A-Z]{2,3}$'
 GROUP BY ALL
 ORDER BY n DESC
 LIMIT 40;
+
+
+GoCanvas Salesforce has no state or country code fields (picklists are off). States are stored as full names ("Texas", "Ontario"), so GoCanvas states come out blank and its AddressKeys won't match Nexus or Chargebee for the same address.
+I'd like to change normalize_state_province to convert the country to a code first and map full US, Canadian and Australian state names to codes. Values that are already codes pass through, so Nexus and Chargebee keys don't change.
+Does NetSuite send state names or codes? If it sends names, its keys would change.
