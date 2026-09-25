@@ -1,18 +1,22 @@
-from sql_connectors import get_salesforce_object
+Hi Glen,
 
-meta = get_salesforce_object("Contact", environment="prod_gocanvas")
-check = ["State__c", "Person_State__c", "Person_Country__c", "Infer_Country__c",
-         "mkto71_Inferred_Country__c", "mkto71_Inferred_State_Region__c"]
-for f in meta["fields"]:
-    if f["name"] in check:
-        print(f["name"], "| formula:", f["calculatedFormula"], "| help:", f["inlineHelpText"])
+I checked GoCanvas Salesforce. It doesn't have the state/country code fields that Nexus has; the picklists are turned off there, so there's nothing extra to extract. The custom fields I found (State__c, the Marketo "inferred" fields) are either full names or guesses, and often a different state from the mailing address.
 
-from sql_connectors import query_salesforce
+In GoCanvas, users type the full state name, like "Texas" or "Ontario". This causes two problems:
 
-df = query_salesforce(
-    "SELECT MailingState, MailingCountry, State__c, Person_State__c, Person_Country__c, "
-    "mkto71_Inferred_State_Region__c, mkto71_Inferred_Country__c "
-    "FROM Contact WHERE State__c != null OR Person_State__c != null LIMIT 50",
-    environment="prod_gocanvas",
-)
-display(df)
+The state comes out blank. Our function only keeps the state when the country is a code like "US". GoCanvas sends "United States", so every GoCanvas state is dropped.
+The same address gets two AddressKeys.
+Brand	State	Country	AddressKey
+Nexus	TX	US	key A
+GoCanvas	Texas	United States	key B
+
+Same office, two rows in dim_addresses.
+
+My suggestion: a small change to normalize_state_province:
+
+change the country to a code first ("United States" → "US");
+change full state names to codes ("Texas" → "TX", "Ontario" → "ON", "New South Wales" → "NSW"), for US, Canada and Australia only.
+
+Values that are already codes pass through unchanged, so Nexus, Chargebee and NetSuite keys don't change. Only GoCanvas gets fixed.
+
+OK to go ahead?
