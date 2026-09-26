@@ -1,58 +1,87 @@
-**Don't run reconcile.** Incremental is the right mode. You changed only the bsat (plus `normalize.py`), and the bsat loader rebuilds from all current vault rows on every run. That means every GoCanvas contact and user got the new columns in this incremental run, not just the recently changed ones.
+# changed at Sep 25 - full state names -> codes (GoCanvas sends "Texas", Nexus sends "TX")
+STATE_NAME_TO_CODE = {
+    # United States
+    "ALABAMA": "AL", "ALASKA": "AK", "ARIZONA": "AZ", "ARKANSAS": "AR", "CALIFORNIA": "CA",
+    "COLORADO": "CO", "CONNECTICUT": "CT", "DELAWARE": "DE", "DISTRICT OF COLUMBIA": "DC",
+    "FLORIDA": "FL", "GEORGIA": "GA", "HAWAII": "HI", "IDAHO": "ID", "ILLINOIS": "IL",
+    "INDIANA": "IN", "IOWA": "IA", "KANSAS": "KS", "KENTUCKY": "KY", "LOUISIANA": "LA",
+    "MAINE": "ME", "MARYLAND": "MD", "MASSACHUSETTS": "MA", "MICHIGAN": "MI", "MINNESOTA": "MN",
+    "MISSISSIPPI": "MS", "MISSOURI": "MO", "MONTANA": "MT", "NEBRASKA": "NE", "NEVADA": "NV",
+    "NEW HAMPSHIRE": "NH", "NEW JERSEY": "NJ", "NEW MEXICO": "NM", "NEW YORK": "NY",
+    "NORTH CAROLINA": "NC", "NORTH DAKOTA": "ND", "OHIO": "OH", "OKLAHOMA": "OK", "OREGON": "OR",
+    "PENNSYLVANIA": "PA", "RHODE ISLAND": "RI", "SOUTH CAROLINA": "SC", "SOUTH DAKOTA": "SD",
+    "TENNESSEE": "TN", "TEXAS": "TX", "UTAH": "UT", "VERMONT": "VT", "VIRGINIA": "VA",
+    "WASHINGTON": "WA", "WEST VIRGINIA": "WV", "WISCONSIN": "WI", "WYOMING": "WY",
+    # Canada
+    "ALBERTA": "AB", "BRITISH COLUMBIA": "BC", "MANITOBA": "MB", "NEW BRUNSWICK": "NB",
+    "NEWFOUNDLAND AND LABRADOR": "NL", "NOVA SCOTIA": "NS", "ONTARIO": "ON",
+    "PRINCE EDWARD ISLAND": "PE", "QUEBEC": "QC", "SASKATCHEWAN": "SK",
+    "NORTHWEST TERRITORIES": "NT", "NUNAVUT": "NU", "YUKON": "YT",
+    # Australia
+    "NEW SOUTH WALES": "NSW", "VICTORIA": "VIC", "QUEENSLAND": "QLD", "WESTERN AUSTRALIA": "WA",
+    "SOUTH AUSTRALIA": "SA", "TASMANIA": "TAS", "AUSTRALIAN CAPITAL TERRITORY": "ACT",
+    "NORTHERN TERRITORY": "NT",
+    # common variants seen in GoCanvas data
+    "WASHINGTON DC": "DC", "PUERTO RICO": "PR", "QUÉBEC": "QC", "NEWFOUNDLAND": "NL",
+}
+def normalize_state_province(col, country_col):
+    """Normalises a state/province column expression based on country.
 
-Reconcile is for bronze/vault problems, and we changed neither. A silver reconcile run on its own is also risky: it tombstones every record that hasn't changed in bronze in the last 7 days.
+    The country is first converted to an ISO code (normalize_country), so
+    "United States" works the same as "US". For countries that use meaningful
+    state/province codes (US, CA, AU, BR, MX) the value is uppercased and full
+    US/CA/AU names are mapped to their standard code ("TEXAS" -> "TX"); values
+    that are already codes pass through unchanged. For all other countries an
+    empty string is returned, as sub-national divisions are not consistently coded.
 
-## What to check (dev)
+    Args:
+        col         (Column): Spark column expression containing the raw state/province.
+        country_col (Column): Spark column expression containing the country (code or name).
 
-Run these one at a time with `USE CATALOG bbdatawarehouse_dev;` first.
+    Returns:
+        Column: State/province code for supported countries, '' otherwise.
+    """
 
-**1. Keys are filled and there are no duplicate current rows**
-```sql
-SELECT count(*)                                         AS current_rows,
-       count(DISTINCT HubContactHashKey)                AS contacts,
-       count(ContactMailingAddressKey)                  AS mailing_keys,
-       count(ContactOtherAddressKey)                    AS other_keys,
-       count_if(ContactMailingAddressKey = md5('Unknown')) AS mailing_unknown,
-       count_if(ContactMailingStreet2Normalized = 'Not Available') AS street2_ok
-FROM silver.salesforce_bsat_contacts_restricted_gocanvas_us
-WHERE ETL_EndDate IS NULL;
-```
-Expect:
-- `current_rows = contacts`: one current row per contact.
-- `mailing_keys`, `other_keys` and `street2_ok` all equal `current_rows`.
-- `mailing_unknown` to be large, since about 309K contacts have no address. That's normal.
+    iso_country = normalize_country(country_col)
+    s = f.regexp_replace(f.upper(col), r"[.,]", "")
+    s = f.trim(f.regexp_replace(s, r"\s+", " "))
+    mapping = f.create_map([f.lit(x) for pair in STATE_NAME_TO_CODE.items() for x in pair])
+    s = f.coalesce(mapping[s], s)
 
-**2. States are now codes**
-```sql
-SELECT ContactMailingCountryNormalized, ContactMailingStateNormalized, count(*) AS n
-FROM silver.salesforce_bsat_contacts_restricted_gocanvas_us
-WHERE ETL_EndDate IS NULL
-GROUP BY ALL ORDER BY n DESC LIMIT 25;
-```
-Expect `US | TX`, `US | CA`, `US | FL`, `CA | ON`, `AU | NSW`, not "Texas" or blanks. Blank state with a blank country is fine.
+    return f.when(
+        iso_country.isin("US", "CA", "AU", "BR", "MX"),
+        s,
+    ).otherwise(f.lit(""))
 
-**3. Users, same checks**
-```sql
-SELECT count(*) AS current_rows, count(DISTINCT HubUserHashKey) AS users,
-       count(UserAddressKey) AS keys, count_if(UserAddressKey = md5('Unknown')) AS unknown
-FROM silver.salesforce_bsat_users_restricted_gocanvas_us
-WHERE ETL_EndDate IS NULL;
-```
 
-**4. One-time version bump (just to understand the numbers)**
-```sql
-SELECT count(*) AS all_rows, count_if(ETL_EndDate IS NULL) AS current_rows
-FROM silver.salesforce_bsat_contacts_restricted_gocanvas_us;
-```
-`all_rows` is about double the old count. That's expected: every contact got a new version because of the new columns, and it happens only this once.
+# added at Sep 8
+def normalize_city(col):
+    """Normalises a city column expression.
 
-## If something looks wrong
+    Steps applied (in order):
+       1. Lowercases the value.
+       2. Folds common accented characters to plain ASCII.
+       3. Removes street-level noise words that leak into city fields.
+       4. Strips any remaining non-letter characters.
+       5. Collapses repeated whitespace and trims.
+       6. Returns '' for results shorter than three characters, which are
+          almost always junk rather than a real place name.
 
-| You see | Likely cause |
-|---|---|
-| Keys NULL | The loader.py `f.lit("")` fix isn't typed, or the job used an old library build |
-| States still "TEXAS" or blank for US | The `normalize.py` change isn't picked up. Check that the job's framework library was rebuilt/redeployed |
-| `current_rows > contacts` | Duplicate current versions. Send me a photo |
-| Job error on `literal` | `literal` isn't registered in work `transformations.py` (the earlier spot-check) |
+    Args:
+        col (Column): Spark column expression containing the raw city.
 
-Once 1–3 look right, run the gold job for GoCanvas with `dim_addresses_config_path` set to the GoCanvas config. Don't run it at the same time as Nexus.
+    Returns:
+        Column: Normalised city column expression (UPPERCASE), '' if junk.
+    """
+
+    c = f.lower(col)
+
+    # Multi-character folds first - translate() cannot expand one char to two.
+    c = f.regexp_replace(c, "æ", "ae")
+    c = f.regexp_replace(c, "ø", "o")
+    c = f.regexp_replace(c, "ß", "ss")
+    c = f.translate(
+        c,
+        "àáâãäåçèéêëìíîïñòóôõöùúûüý",
+        "aaaaaaceeeeiiiinooooouuuuy",
+    )
