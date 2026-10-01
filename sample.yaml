@@ -1,396 +1,168 @@
-#silver business satellite configuration - salesforce curated business satellites
-#this file defines metadata-driven business satellites sourced from vault satellites.
-#run the business satellite metadata sync to push changes into the metadata tables.
+#Gold Layer Configuration - Salesforce (SiteDocs / US)
+#Run sync_gold_metadata_runner.py to push changes into the metadata tables.
 
 source_system: salesforce
-record_source: salesforce_business
-target_catalog: bbdatawarehouse_dev
-source_schema: silver
-target_schema: silver
 brand: SiteDocs
 region: US
+target_catalog: bbdatawarehouse_dev
+source_schema: silver
+target_schema: gold
 
-satellites:
-  - table_name: salesforce_bsat_accounts_sitedocs_us
-    source_table: salesforce_sat_accounts_sitedocs_us
-    parent_key_column: HubAccountHashKey
+tables:
+
+  # ----------------------------------------------------------------------
+  # DIMENSIONS — UNRESTRICTED
+  # ----------------------------------------------------------------------
+
+  - table_name: salesforce_dim_accounts
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: AccountType
-        source_column: AccountType
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_accounts_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: AccountType
+          - source: AccountFirstBecameCustomerOn
+          - source: AccountOwnerName
+          - source: AccountPartnerType
+          - source: AccountPartner2Type
+          - source: AccountRollUpToParentAccount
+          - source: AccountChargeBeeId
+          - source: AccountParentAccountName
+          - source: AccountChargeBeeSubscriptionMRR
+          - source: AccountChargeBeeSubscriptionARR
 
-      - target_column: AccountFirstBecameCustomerOn
-        source_column: AccountFirstBecameCustomerOn
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountOwnerName
-        source_column: AccountOwnerName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: AccountPartnerType
-        source_column: AccountPartnerType
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: AccountRollUpToParentAccount
-        source_column: AccountRollUpToParentAccount
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountChargeBeeId
-        source_column: AccountChargeBeeId
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountPartner2Type
-        source_column: AccountPartner2Type
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: AccountParentAccountName
-        source_column: AccountParentAccountName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_company_name
-          - name: default_values
-
-      - target_column: AccountChargeBeeSubscriptionMRR
-        source_column: AccountChargeBeeSubscriptionMRR
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: AccountChargeBeeSubscriptionARR
-        source_column: AccountChargeBeeSubscriptionARR
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-  - table_name: salesforce_bsat_accounts_restricted_sitedocs_us
-    source_table: salesforce_sat_accounts_restricted_sitedocs_us
-    parent_key_column: HubAccountHashKey
+  - table_name: salesforce_fact_opportunities
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opportunities
+    key_column: OpportunityKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: AccountName
-        source_column: AccountName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_company_name
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_opportunities_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: OpportunityARR
+          - source: OpportunityGrowthARR
+          - source: OpportunityWonARR
+    foreign_keys:
+      - link: salesforce_link_opportunity_account
+        hub_key: HubAccountHashKey
+        fk_column: OpportunityAccountKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_sitedocs
+        join_type: LEFT
+      - link: salesforce_link_opportunity_account_partner_created_lead
+        hub_key: HubAccountHashKey
+        fk_column: OpportunityPartnerCreatedLeadAccountKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_partner_created_lead_sitedocs
+        join_type: LEFT
 
-  - table_name: salesforce_bsat_leads_sitedocs_us
-    source_table: salesforce_sat_leads_sitedocs_us
-    parent_key_column: HubLeadHashKey
+  - table_name: salesforce_dim_opportunities
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opportunities
+    key_column: OpportunityKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: LeadConvertedContactId
-        source_column: LeadConvertedContactId
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_opportunities_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: OpportunityStageName
+          - source: OpportunityCloseDate
+          - source: OpportunityType
+          - source: OpportunityRenewedFrom
+          - source: OpportunityRenewedTo
+          - source: OpportunityPartnerContractTypePrimary
+          - source: OpportunityWhoCreatedLeadAccountAccountType
+          - source: OpportunityChargeBeeSubscriptionId
+          - source: OpportunityCountryFormulaGrouping
+          - source: OpportunityARRIsOpportunityARRActive
+          - source: OpportunityPartnerType
 
-  - table_name: salesforce_bsat_opportunities_sitedocs_us
-    source_table: salesforce_sat_opportunities_sitedocs_us
-    parent_key_column: HubOpportunityHashKey
+  # ----------------------------------------------------------------------
+  # DIMENSIONS — RESTRICTED
+  # ----------------------------------------------------------------------
+
+  - table_name: salesforce_dim_accounts_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: OpportunityStageName
-        source_column: OpportunityStageName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_accounts_restricted_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: AccountName
 
-      - target_column: OpportunityCloseDate
-        source_column: OpportunityCloseDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
+  # ----------------------------------------------------------------------
+  # FACTS
+  # ----------------------------------------------------------------------
 
-      - target_column: OpportunityType
-        source_column: OpportunityType
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: OpportunityRenewedFrom
-        source_column: OpportunityRenewedFrom
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: OpportunityRenewedTo
-        source_column: OpportunityRenewedTo
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: OpportunityPartnerContractTypePrimary
-        source_column: OpportunityPartnerContractTypePrimary
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: OpportunityWhoCreatedLeadAccountAccountType
-        source_column: OpportunityWhoCreatedLeadAccountAccountType
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: OpportunityChargeBeeSubscriptionId
-        source_column: OpportunityChargeBeeSubscriptionId
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: OpportunityCountryFormulaGrouping
-        source_column: OpportunityCountryFormulaGrouping
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: OpportunityARRIsOpportunityARRActive
-        source_column: OpportunityARRIsOpportunityARRActive
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: OpportunityPartnerType
-        source_column: OpportunityPartnerType
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: OpportunityARR
-        source_column: OpportunityARR
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OpportunityGrowthARR
-        source_column: OpportunityGrowthARR
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OpportunityWonARR
-        source_column: OpportunityWonARR
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-  - table_name: salesforce_bsat_opportunity_line_items_sitedocs_us
-    source_table: salesforce_sat_opportunity_line_items_sitedocs_us
-    parent_key_column: HubOpportunityLineItemHashKey
+  - table_name: salesforce_fact_opportunity_line_items
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opportunity_line_items
+    key_column: OpportunityLineItemKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: OpportunityLineItemProduct2Id
-        source_column: OpportunityLineItemProduct2Id
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_opportunity_line_items_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: OpportunityLineItemProduct2Id
+          - source: OpportunityLineItemProductCode
+          - source: OpportunityLineItemName
+          - source: OpportunityLineItemCurrencyIsoCode
+          - source: OpportunityLineItemTotalPrice
+          - source: OpportunityLineItemUnitPrice
+          - source: OpportunityLineItemListPrice
+          - source: OpportunityLineItemTotalPriceInUSDNEM2025
+          - source: OpportunityLineItemIsRecurringProduct
+    foreign_keys:
+      - link: salesforce_link_opportunity_line_item_opportunity
+        hub_key: HubOpportunityHashKey
+        fk_column: OpportunityLineItemOpportunityKey
+        driving_key: false
+        join_type: INNER
 
-      - target_column: OpportunityLineItemProductCode
-        source_column: OpportunityLineItemProductCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: OpportunityLineItemName
-        source_column: OpportunityLineItemName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_company_name
-          - name: default_values
-
-      - target_column: OpportunityLineItemCurrencyIsoCode
-        source_column: OpportunityLineItemCurrencyIsoCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: upper
-          - name: default_values
-
-      - target_column: OpportunityLineItemIsRecurringProduct
-        source_column: OpportunityLineItemIsRecurringProduct
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: OpportunityLineItemTotalPrice
-        source_column: OpportunityLineItemTotalPrice
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OpportunityLineItemUnitPrice
-        source_column: OpportunityLineItemUnitPrice
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OpportunityLineItemListPrice
-        source_column: OpportunityLineItemListPrice
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OpportunityLineItemTotalPriceInUSDNEM2025
-        source_column: OpportunityLineItemTotalPriceInUSDNEM2025
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-  - table_name: salesforce_bsat_opp_details_sitedocs_us
-    source_table: salesforce_sat_opp_details_sitedocs_us
-    parent_key_column: HubOppDetailHashKey
+  - table_name: salesforce_fact_opp_details
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opp_details
+    key_column: OppDetailKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: OppDetailARRCategory
-        source_column: OppDetailARRCategory
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: OppDetailARRCurrency
-        source_column: OppDetailARRCurrency
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: upper
-          - name: default_values
-
-      - target_column: OppDetailAccountId
-        source_column: OppDetailAccountId
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: OppDetailARRIsCurrentlyActive
-        source_column: OppDetailARRIsCurrentlyActive
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: OppDetailARROverride
-        source_column: OppDetailARROverride
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OppDetailARRTermDays
-        source_column: OppDetailARRTermDays
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OppDetailARRInUSDNEMRates
-        source_column: OppDetailARRInUSDNEMRates
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OppDetailARRTotalIncomingARRInUSD
-        source_column: OppDetailARRTotalIncomingARRInUSD
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: OppDetailARRCurrentMinusIncomingInUSD
-        source_column: OppDetailARRCurrentMinusIncomingInUSD
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
+    satellites:
+      - name: salesforce_bsat_opp_details_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: OppDetailARRCategory
+          - source: OppDetailARRCurrency
+          - source: OppDetailARRIsCurrentlyActive
+          - source: OppDetailARROverride
+          - source: OppDetailARRTermDays
+          - source: OppDetailARRInUSDNEMRates
+          - source: OppDetailARRTotalIncomingARRInUSD
+          - source: OppDetailARRCurrentMinusIncomingInUSD
+    foreign_keys:
+      - link: salesforce_link_opp_detail_opportunity
+        hub_key: HubOpportunityHashKey
+        fk_column: OppDetailsOpportunityKey
+        driving_key: false
+        join_type: INNER
