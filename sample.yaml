@@ -1,1067 +1,313 @@
-#silver business satellite configuration - salesforce curated business satellites
-#this file defines metadata-driven business satellites sourced from vault satellites.
-#run the business satellite metadata sync to push changes into the metadata tables.
+#Gold Layer Configuration - Salesforce (GoCanvas / US)
+#Run sync_gold_metadata_runner.py to push changes into the metadata tables.
 
 source_system: salesforce
-record_source: salesforce_business
-target_catalog: bbdatawarehouse_dev
-source_schema: silver
-target_schema: silver
 brand: GoCanvas
 region: US
+target_catalog: bbdatawarehouse_dev
+source_schema: silver
+target_schema: gold
 
-satellites:
-  - table_name: salesforce_bsat_accounts_gocanvas_us
-    source_table: salesforce_sat_accounts_gocanvas_us
-    parent_key_column: HubAccountHashKey
+tables:
+
+  # ----------------------------------------------------------------------
+  # DIMENSIONS — UNRESTRICTED
+  # ----------------------------------------------------------------------
+
+  - table_name: salesforce_dim_accounts
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: AccountIsDeleted
-        source_column: AccountIsDeleted
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_accounts_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: AccountIsDeleted
+          - source: AccountWebsite
+          - source: AccountLBLZuoraBillingAccountID
+          - source: AccountDeviceMagicExternalID
+          - source: AccountBillingIDBackup
+          - source: AccountID18
+          - source: AccountBillingRegion
+          - source: AccountBookSegment
+          - source: AccountPartnerType
+          - source: AccountManaged
+          - source: AccountSnowballWriteOffDate
+          - source: AccountLastActivityDate
+          - source: AccountCreatedDate
+          - source: AccountLastModifiedDate
+          - source: AccountSystemModstamp
 
-      - target_column: AccountWebsite
-        source_column: AccountWebsite
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: lower
-          - name: default_values
-
-      - target_column: AccountLBLZuoraBillingAccountID
-        source_column: AccountLBLZuoraBillingAccountID
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountDeviceMagicExternalID
-        source_column: AccountDeviceMagicExternalID
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountBillingIDBackup
-        source_column: AccountBillingIDBackup
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountID18
-        source_column: AccountID18
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountBillingRegion
-        source_column: AccountBillingRegion
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: AccountBookSegment
-        source_column: AccountBookSegment
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: AccountPartnerType
-        source_column: AccountPartnerType
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: AccountManaged
-        source_column: AccountManaged
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: AccountSnowballWriteOffDate
-        source_column: AccountSnowballWriteOffDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: AccountLastActivityDate
-        source_column: AccountLastActivityDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: AccountCreatedDate
-        source_column: AccountCreatedDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: AccountLastModifiedDate
-        source_column: AccountLastModifiedDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: AccountSystemModstamp
-        source_column: AccountSystemModstamp
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: AccountARRFromCMRR
-        source_column: AccountARRFromCMRR
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: AccountPreviousMonthsARR
-        source_column: AccountPreviousMonthsARR
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: AccountMonthlyARRChange
-        source_column: AccountMonthlyARRChange
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: AccountTodaysARR
-        source_column: AccountTodaysARR
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: AccountChurnscore
-        source_column: AccountChurnscore
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: AccountDeviceMagicPrimaryChurnscore
-        source_column: AccountDeviceMagicPrimaryChurnscore
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-      - target_column: AccountSeatsPurchased
-        source_column: AccountSeatsPurchased
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values_measures
-
-  - table_name: salesforce_bsat_accounts_restricted_gocanvas_us
-    source_table: salesforce_sat_accounts_restricted_gocanvas_us
-    parent_key_column: HubAccountHashKey
+  - table_name: salesforce_dim_contacts
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_contacts
+    key_column: ContactKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: AccountName
-        source_column: AccountName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_company_name
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_contacts_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: ContactIsDeleted
+          - source: ContactSalutation
+          - source: ContactTitle
+          - source: ContactDepartment
+          - source: ContactLeadSource
+          - source: ContactDescription
+          - source: ContactReportsToId
+          - source: ContactLastActivityDate
+          - source: ContactCreatedDate
+          - source: ContactLastModifiedDate
+          - source: ContactSystemModstamp
 
-      - target_column: AccountPhone
-        source_column: AccountPhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountFax
-        source_column: AccountFax
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountGoCanvasUsername
-        source_column: AccountGoCanvasUsername
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: lower
-          - name: default_values
-
-      - target_column: AccountOwnersManager
-        source_column: AccountOwnersManager
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: AccountManagerText
-        source_column: AccountManagerText
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: AccountFullName
-        source_column: AccountFullName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountPreviousOwner1
-        source_column: AccountPreviousOwner1
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: AccountPreviousOwner2
-        source_column: AccountPreviousOwner2
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-  - table_name: salesforce_bsat_contacts_gocanvas_us
-    source_table: salesforce_sat_contacts_gocanvas_us
-    parent_key_column: HubContactHashKey
+  - table_name: salesforce_dim_users
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_users
+    key_column: UserKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: ContactIsDeleted
-        source_column: ContactIsDeleted
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_users_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: UserCompanyName
+          - source: UserDivision
+          - source: UserDepartment
+          - source: UserTitle
+          - source: UserSenderName
+          - source: UserSignature
+          - source: UserAlias
+          - source: UserCommunityNickname
+          - source: UserIsActive
+          - source: UserTimeZoneSidCode
+          - source: UserLocaleSidCode
+          - source: UserCurrencyISOCode
+          - source: UserType
+          - source: UserLanguageLocaleCode
+          - source: UserEmployeeNumber
+          - source: UserSuAccessExpirationDate
+          - source: UserFederationIdentifier
+          - source: UserChurnZeroAccess
+          - source: UserAnniversary
+          - source: UserTeamLead
+          - source: UserRoleName
+          - source: UserProfileName
+          - source: UserSalesSegmentation
+          - source: UserStartDate
+          - source: UserCreatedDate
+          - source: UserLastModifiedDate
+          - source: UserSystemModstamp
 
-      - target_column: ContactSalutation
-        source_column: ContactSalutation
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
+  # ----------------------------------------------------------------------
+  # DIMENSIONS — RESTRICTED
+  # ----------------------------------------------------------------------
 
-      - target_column: ContactTitle
-        source_column: ContactTitle
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: ContactDepartment
-        source_column: ContactDepartment
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: ContactLeadSource
-        source_column: ContactLeadSource
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: ContactReportsToId
-        source_column: ContactReportsToId
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: ContactDescription
-        source_column: ContactDescription
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: ContactLastActivityDate
-        source_column: ContactLastActivityDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: ContactCreatedDate
-        source_column: ContactCreatedDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: ContactLastModifiedDate
-        source_column: ContactLastModifiedDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: ContactSystemModstamp
-        source_column: ContactSystemModstamp
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: ContactLastActivityDateKey
-        source_column: ContactLastActivityDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: date_to_key
-
-      - target_column: ContactCreatedDateKey
-        source_column: ContactCreatedDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: date_to_key
-
-      - target_column: ContactLastModifiedDateKey
-        source_column: ContactLastModifiedDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: date_to_key
-
-      - target_column: ContactSystemModstampKey
-        source_column: ContactSystemModstamp
-        description: ''
-        is_active: true
-        transforms:
-          - name: date_to_key
-
-  - table_name: salesforce_bsat_contacts_restricted_gocanvas_us
-    source_table: salesforce_sat_contacts_restricted_gocanvas_us
-    parent_key_column: HubContactHashKey
+  - table_name: salesforce_dim_accounts_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: ContactFirstName
-        source_column: ContactFirstName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_accounts_restricted_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: AccountName
+          - source: AccountPhone
+          - source: AccountFax
+          - source: AccountGoCanvasUsername
+          - source: AccountOwnersManager
+          - source: AccountManagerText
+          - source: AccountFullName
+          - source: AccountPreviousOwner1
+          - source: AccountPreviousOwner2
 
-      - target_column: ContactLastName
-        source_column: ContactLastName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: ContactName
-        source_column: ContactName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: ContactEmail
-        source_column: ContactEmail
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: lower
-          - name: default_values
-
-      - target_column: ContactPhone
-        source_column: ContactPhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: ContactMobilePhone
-        source_column: ContactMobilePhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: ContactHomePhone
-        source_column: ContactHomePhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: ContactOtherPhone
-        source_column: ContactOtherPhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: ContactFax
-        source_column: ContactFax
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      # AddressKey hashes the RAW vault columns (address_to_key normalizes them itself).
-      # GoCanvas has no StateCode/CountryCode fields - names are converted by normalize_state_province.
-      - target_column: ContactMailingAddressKey
-        description: Contact mailing AddressKey for dim_addresses - MD5 of the normalized address (address_to_key).
-        is_active: true
-        transforms:
-          - name: address_to_key
-            args:
-              columns: [ContactMailingStreet, null, ContactMailingCity, ContactMailingState, ContactMailingPostalCode, ContactMailingCountry]
-
-      - target_column: ContactMailingStreetNormalized
-        source_column: ContactMailingStreet
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_street_address
-          - name: default_values
-
-      - target_column: ContactMailingStreet2Normalized
-        description: Contact mailing street line 2 for dim_addresses. Salesforce has no second street field, so always 'Not Available' (same as a blank Chargebee line 2).
-        is_active: true
-        transforms:
-          - name: literal
-            args:
-              value: Not Available
-
-      - target_column: ContactMailingCityNormalized
-        source_column: ContactMailingCity
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_city
-          - name: default_values
-
-      - target_column: ContactMailingCountryNormalized
-        source_column: ContactMailingCountry
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_country
-          - name: default_values
-
-      - target_column: ContactMailingStateNormalized
-        source_column: ContactMailingState
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_state_province
-            args:
-              country_column: ContactMailingCountry
-          - name: default_values
-
-      - target_column: ContactMailingPostalCodeNormalized
-        source_column: ContactMailingPostalCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_postal
-          - name: default_values
-
-      - target_column: ContactOtherAddressKey
-        description: Contact other AddressKey for dim_addresses - MD5 of the normalized address (address_to_key).
-        is_active: true
-        transforms:
-          - name: address_to_key
-            args:
-              columns: [ContactOtherStreet, null, ContactOtherCity, ContactOtherState, ContactOtherPostalCode, ContactOtherCountry]
-
-      - target_column: ContactOtherStreetNormalized
-        source_column: ContactOtherStreet
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_street_address
-          - name: default_values
-
-      - target_column: ContactOtherStreet2Normalized
-        description: Contact other street line 2 for dim_addresses. Salesforce has no second street field, so always 'Not Available' (same as a blank Chargebee line 2).
-        is_active: true
-        transforms:
-          - name: literal
-            args:
-              value: Not Available
-
-      - target_column: ContactOtherCityNormalized
-        source_column: ContactOtherCity
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_city
-          - name: default_values
-
-      - target_column: ContactOtherStateNormalized
-        source_column: ContactOtherState
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_state_province
-            args:
-              country_column: ContactOtherCountry
-          - name: default_values
-
-      - target_column: ContactOtherPostalCodeNormalized
-        source_column: ContactOtherPostalCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_postal
-          - name: default_values
-
-      - target_column: ContactOtherCountryNormalized
-        source_column: ContactOtherCountry
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_country
-          - name: default_values
-
-      - target_column: ContactAssistantName
-        source_column: ContactAssistantName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: ContactAssistantPhone
-        source_column: ContactAssistantPhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-  - table_name: salesforce_bsat_users_gocanvas_us
-    source_table: salesforce_sat_users_gocanvas_us
-    parent_key_column: HubUserHashKey
+  - table_name: salesforce_dim_contacts_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_contacts
+    key_column: ContactKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: UserCompanyName
-        source_column: UserCompanyName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_company_name
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_contacts_restricted_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: ContactFirstName
+          - source: ContactLastName
+          - source: ContactName
+          - source: ContactEmail
+          - source: ContactPhone
+          - source: ContactMobilePhone
+          - source: ContactHomePhone
+          - source: ContactOtherPhone
+          - source: ContactFax
+          - source: ContactAssistantName
+          - source: ContactAssistantPhone
 
-      - target_column: UserDivision
-        source_column: UserDivision
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: UserDepartment
-        source_column: UserDepartment
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: UserTitle
-        source_column: UserTitle
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: UserSenderName
-        source_column: UserSenderName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_company_name
-          - name: default_values
-
-      - target_column: UserSignature
-        source_column: UserSignature
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserAlias
-        source_column: UserAlias
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserCommunityNickname
-        source_column: UserCommunityNickname
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserIsActive
-        source_column: UserIsActive
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: UserTimeZoneSidCode
-        source_column: UserTimeZoneSidCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserRoleId
-        source_column: UserRoleId
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserLocaleSidCode
-        source_column: UserLocaleSidCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserCurrencyISOCode
-        source_column: UserCurrencyISOCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: upper
-
-
-      - target_column: UserCurrencyKey
-        source_column: UserCurrencyISOCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: upper
-          - name: currency_to_key
-
-      - target_column: UserProfileId
-        source_column: UserProfileId
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserType
-        source_column: UserType
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: UserLanguageLocaleCode
-        source_column: UserLanguageLocaleCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserEmployeeNumber
-        source_column: UserEmployeeNumber
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserDelegatedApproverId
-        source_column: UserDelegatedApproverId
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserManagerId
-        source_column: UserManagerId
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserSuAccessExpirationDate
-        source_column: UserSuAccessExpirationDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: UserFederationIdentifier
-        source_column: UserFederationIdentifier
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserChurnZeroAccess
-        source_column: UserChurnZeroAccess
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: UserAnniversary
-        source_column: UserAnniversary
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: UserTeamLead
-        source_column: UserTeamLead
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: UserRoleName
-        source_column: UserRoleName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: UserProfileName
-        source_column: UserProfileName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: UserSalesSegmentation
-        source_column: UserSalesSegmentation
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-      - target_column: UserStartDate
-        source_column: UserStartDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: UserCreatedDate
-        source_column: UserCreatedDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: UserCreatedById
-        source_column: UserCreatedById
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserLastModifiedDate
-        source_column: UserLastModifiedDate
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-      - target_column: UserLastModifiedById
-        source_column: UserLastModifiedById
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserSystemModstamp
-        source_column: UserSystemModstamp
-        description: ''
-        is_active: true
-        transforms:
-          - name: default_values
-
-  - table_name: salesforce_bsat_users_restricted_gocanvas_us
-    source_table: salesforce_sat_users_restricted_gocanvas_us
-    parent_key_column: HubUserHashKey
+  - table_name: salesforce_dim_users_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_users
+    key_column: UserKey
     filter: "1=1"
     is_active: true
-    attributes:
-      - target_column: UserUsername
-        source_column: UserUsername
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: lower
-          - name: default_values
+    satellites:
+      - name: salesforce_bsat_users_restricted_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: UserUsername
+          - source: UserLastName
+          - source: UserFirstName
+          - source: UserName
+          - source: UserEmail
+          - source: UserSenderEmail
+          - source: UserPhone
+          - source: UserFax
+          - source: UserMobilePhone
+          - source: UserExtension
+          - source: UserLBLAlternativePhone
+          - source: UserQualifiedMeetingBookerName
 
-      - target_column: UserLastName
-        source_column: UserLastName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
+  - table_name: salesforce_fact_user_addresses
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_users
+    key_column: UserKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_users_restricted_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: UserStreetNormalized
+          - source: UserCityNormalized
+          - source: UserStateNormalized
+          - source: UserPostalCodeNormalized
+          - source: UserCountryNormalized
+          # address key (dim_addresses) - 'Restricted' in the column name so the
+          # column-level masking policy applies to it
+          - source: UserAddressKey
+            target: UserAddressRestrictedKey
+  # ----------------------------------------------------------------------
+  # FACTS
+  # ----------------------------------------------------------------------
 
-      - target_column: UserFirstName
-        source_column: UserFirstName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
+  - table_name: salesforce_fact_accounts
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_accounts_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: AccountARRFromCMRR
+          - source: AccountPreviousMonthsARR
+          - source: AccountMonthlyARRChange
+          - source: AccountTodaysARR
+          - source: AccountChurnscore
+          - source: AccountDeviceMagicPrimaryChurnscore
+          - source: AccountSeatsPurchased
+    foreign_keys:
+      - link: salesforce_link_account_user_owner
+        hub_key: HubUserHashKey
+        fk_column: AccountOwnerUserKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_account_user_owner_gocanvas
+        join_type: LEFT
+      - link: salesforce_link_account_user_previous_account_owner
+        hub_key: HubUserHashKey
+        fk_column: AccountPreviousOwnerUserKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_account_user_previous_account_owner_gocanvas
+        join_type: LEFT
+      - link: salesforce_link_account_user_account_manager
+        hub_key: HubUserHashKey
+        fk_column: AccountManagerUserKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_account_user_account_manager_gocanvas
+        join_type: LEFT
+      - link: salesforce_link_account_user_technical_account_manager
+        hub_key: HubUserHashKey
+        fk_column: AccountTechnicalManagerUserKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_account_user_technical_account_manager_gocanvas
+        join_type: LEFT
 
-      - target_column: UserName
-        source_column: UserName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
+  - table_name: salesforce_fact_contacts
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_contacts
+    key_column: ContactKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_contacts_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: ContactLastActivityDateKey
+          - source: ContactCreatedDateKey
+          - source: ContactLastModifiedDateKey
+          - source: ContactSystemModstampKey
+    foreign_keys:
+      - link: salesforce_link_contact_account
+        hub_key: HubAccountHashKey
+        fk_column: ContactAccountKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_contact_account_gocanvas
+        join_type: LEFT
+      - link: salesforce_link_contact_user_owner
+        hub_key: HubUserHashKey
+        fk_column: ContactOwnerUserKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_contact_user_owner_gocanvas
+        join_type: LEFT
 
-      - target_column: UserAddressKey
-        description: User AddressKey for dim_addresses - MD5 of the normalized address (address_to_key).
-        is_active: true
-        transforms:
-          - name: address_to_key
-            args:
-              columns: [UserStreet, null, UserCity, UserState, UserPostalCode, UserCountry]
-
-      - target_column: UserStreetNormalized
-        source_column: UserStreet
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_street_address
-          - name: default_values
-
-      - target_column: UserStreet2Normalized
-        description: User street line 2 for dim_addresses. Salesforce has no second street field, so always 'Not Available' (same as a blank Chargebee line 2).
-        is_active: true
-        transforms:
-          - name: literal
-            args:
-              value: Not Available
-
-      - target_column: UserCityNormalized
-        source_column: UserCity
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_city
-          - name: default_values
-
-      - target_column: UserStateNormalized
-        source_column: UserState
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_state_province
-            args:
-              country_column: UserCountry
-          - name: default_values
-
-      - target_column: UserPostalCodeNormalized
-        source_column: UserPostalCode
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_postal
-          - name: default_values
-
-      - target_column: UserCountryNormalized
-        source_column: UserCountry
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: normalize_country
-          - name: default_values
-
-      - target_column: UserEmail
-        source_column: UserEmail
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: lower
-          - name: default_values
-
-      - target_column: UserSenderEmail
-        source_column: UserSenderEmail
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: lower
-          - name: default_values
-
-      - target_column: UserPhone
-        source_column: UserPhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserFax
-        source_column: UserFax
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserMobilePhone
-        source_column: UserMobilePhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserExtension
-        source_column: UserExtension
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserLBLAlternativePhone
-        source_column: UserLBLAlternativePhone
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: default_values
-
-      - target_column: UserQualifiedMeetingBookerName
-        source_column: UserQualifiedMeetingBookerName
-        description: ''
-        is_active: true
-        transforms:
-          - name: trim
-          - name: initcap
-          - name: default_values
-
-
+  - table_name: salesforce_fact_contact_addresses
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_contacts
+    key_column: ContactKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_contacts_restricted_gocanvas_us
+        satellite_type: business
+        columns:
+        #mailing address
+          - source: ContactMailingStreetNormalized
+          - source: ContactMailingCityNormalized
+          - source: ContactMailingStateNormalized
+          - source: ContactMailingPostalCodeNormalized
+          - source: ContactMailingCountryNormalized
+        #other address
+          - source: ContactOtherStreetNormalized
+          - source: ContactOtherCityNormalized
+          - source: ContactOtherStateNormalized
+          - source: ContactOtherPostalCodeNormalized
+          - source: ContactOtherCountryNormalized
+          # address keys (dim_addresses) - 'Restricted' in the column name so the
+          # column-level masking policy applies to them
+          - source: ContactMailingAddressKey
+            target: ContactMailingAddressRestrictedKey
+          - source: ContactOtherAddressKey
+            target: ContactOtherAddressRestrictedKey
