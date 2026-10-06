@@ -1,3 +1,18 @@
+    foreign_keys:
+      - link: chargebee_link_invoice_customer
+        hub_key: HubCustomerHashKey
+        fk_column: CustomerKey
+        join_type: LEFT
+      - link: chargebee_link_invoice_customer
+        hub_key: HubCustomerHashKey
+        fk_column: CustomerRestrictedKey
+        join_type: LEFT
+      - link: chargebee_link_invoice_subscription
+        hub_key: HubSubscriptionHashKey
+        fk_column: SubscriptionKey
+        join_type: LEFT
+ 
+ 
  Enable Delta column mapping (name mode) on newly created tables
 
 Set delta.columnMapping.mode = 'name' wherever the framework creates a table,
