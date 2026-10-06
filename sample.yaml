@@ -1,1 +1,181 @@
+#Gold Layer Configuration - Salesforce (SiteDocs / US)
+#Run sync_gold_metadata_runner.py to push changes into the metadata tables.
+
+source_system: salesforce
+brand: SiteDocs
+region: US
+target_catalog: bbdatawarehouse_dev
+source_schema: silver
+target_schema: gold
+
+tables:
+
+  # ----------------------------------------------------------------------
+  # DIMENSIONS — UNRESTRICTED
+  # ----------------------------------------------------------------------
+
+  - table_name: salesforce_dim_accounts
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_accounts_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: AccountType
+          - source: AccountFirstBecameCustomerOn
+          - source: AccountOwnerName
+          - source: AccountPartnerType
+          - source: AccountPartner2Type
+          - source: AccountRollUpToParentAccount
+          - source: AccountChargeBeeId
+          - source: AccountParentAccountName
+          - source: AccountChargeBeeSubscriptionMRR
+          - source: AccountChargeBeeSubscriptionARR
+
+  - table_name: salesforce_fact_opportunities
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opportunities
+    key_column: OpportunityKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_opportunities_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: OpportunityARR
+          - source: OpportunityGrowthARR
+          - source: OpportunityWonARR
+    foreign_keys:
+      - link: salesforce_link_opportunity_account
+        hub_key: HubAccountHashKey
+        fk_column: OpportunityAccountKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_sitedocs
+        join_type: LEFT
+      - link: salesforce_link_opportunity_account
+        hub_key: HubAccountHashKey
+        fk_column: OpportunityAccountRestrictedKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_sitedocs
+        join_type: LEFT
+      - link: salesforce_link_opportunity_account_partner_created_lead
+        hub_key: HubAccountHashKey
+        fk_column: OpportunityPartnerCreatedLeadAccountKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_partner_created_lead_sitedocs
+        join_type: LEFT
+      - link: salesforce_link_opportunity_account_partner_created_lead
+        hub_key: HubAccountHashKey
+        fk_column: OpportunityPartnerCreatedLeadAccountRestrictedKey
+        driving_key: false
+        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_partner_created_lead_sitedocs
+        join_type: LEFT
+
+  - table_name: salesforce_dim_opportunities
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opportunities
+    key_column: OpportunityKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_opportunities_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: OpportunityStageName
+          - source: OpportunityCloseDate
+          - source: OpportunityType
+          - source: OpportunityRenewedFrom
+          - source: OpportunityRenewedTo
+          - source: OpportunityPartnerContractTypePrimary
+          - source: OpportunityWhoCreatedLeadAccountAccountType
+          - source: OpportunityChargeBeeSubscriptionId
+          - source: OpportunityCountryFormulaGrouping
+          - source: OpportunityARRIsOpportunityARRActive
+          - source: OpportunityPartnerType
+
+  # ----------------------------------------------------------------------
+  # DIMENSIONS — RESTRICTED
+  # ----------------------------------------------------------------------
+
+  - table_name: salesforce_dim_accounts_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_accounts
+    key_column: AccountRestrictedKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_accounts_restricted_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: AccountName
+
+  # ----------------------------------------------------------------------
+  # FACTS
+  # ----------------------------------------------------------------------
+
+  - table_name: salesforce_fact_opportunity_line_items
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opportunity_line_items
+    key_column: OpportunityLineItemKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_opportunity_line_items_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: OpportunityLineItemProduct2Id
+          - source: OpportunityLineItemProductCode
+          - source: OpportunityLineItemName
+          - source: OpportunityLineItemCurrencyIsoCode
+          - source: OpportunityLineItemTotalPrice
+          - source: OpportunityLineItemUnitPrice
+          - source: OpportunityLineItemListPrice
+          - source: OpportunityLineItemTotalPriceInUSDNEM2025
+          - source: OpportunityLineItemIsRecurringProduct
+    foreign_keys:
+      - link: salesforce_link_opportunity_line_item_opportunity
+        hub_key: HubOpportunityHashKey
+        fk_column: OpportunityLineItemOpportunityKey
+        driving_key: false
+        join_type: INNER
+
+  - table_name: salesforce_fact_opp_details
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: salesforce_hub_opp_details
+    key_column: OppDetailKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: salesforce_bsat_opp_details_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: OppDetailARRCategory
+          - source: OppDetailARRCurrency
+          - source: OppDetailARRIsCurrentlyActive
+          - source: OppDetailARROverride
+          - source: OppDetailARRTermDays
+          - source: OppDetailARRInUSDNEMRates
+          - source: OppDetailARRTotalIncomingARRInUSD
+          - source: OppDetailARRCurrentMinusIncomingInUSD
+    foreign_keys:
+      - link: salesforce_link_opp_detail_opportunity
+        hub_key: HubOpportunityHashKey
+        fk_column: OppDetailsOpportunityKey
+        driving_key: false
+        join_type: INNER
 
