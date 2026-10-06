@@ -1,7 +1,1 @@
-DROP TABLE bbdatawarehouse_dev.gold.salesforce_dim_accounts_restricted;
-DROP TABLE bbdatawarehouse_dev.gold.salesforce_dim_contacts_restricted;
-DROP TABLE bbdatawarehouse_dev.gold.salesforce_dim_users_restricted;
-DROP TABLE bbdatawarehouse_dev.gold.salesforce_dim_cases_restricted;
-DROP TABLE bbdatawarehouse_dev.gold.salesforce_dim_leads_restricted;
-DROP TABLE bbdatawarehouse_dev.gold.salesforce_dim_orders_restricted;
-DROP TABLE bbdatawarehouse_dev.gold.chargebee_dim_customers_restricted;
+d
