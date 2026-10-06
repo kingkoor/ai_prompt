@@ -1,7 +1,22 @@
-#Gold Layer Configuration - Salesforce (SiteDocs / US)
-#Run sync_gold_metadata_runner.py to push changes into the metadata tables.
+# =============================================================================
+# Chargebee Gold Configuration — SiteDocs
+# =============================================================================
+# Star schema per "SiteDocs Star Schema Object Map": dim_CB_Customer, dim_CB_Plan,
+# fact_CB_Subscription, fact_CB_Invoice. Standalone - no cross-system link to
+# Salesforce in the vault framework. The SF<->CB join happens later, above gold,
+# using the plain attribute columns carried through (CustomerSalesforceAccountId
+# etc.) - not a hash join.
+#
+# Money fields (mrr, plan price, invoice total/paid/due) are converted from
+# integer cents to decimal dollars in the bsat layer (cents_to_dollars
+# transform) - gold only ever reads the *Usd columns, never raw cents.
+#
+# Every column is read from a bsat, so nulls are already defaulted there.
+# Dates are epoch seconds in the vault. Dims read timestamps from the bsat
+# (epoch_to_timestamp); facts read *DateKey (joins dim_dates) and CurrencyKey
+# (joins dim_currencies) from the bsat, never raw epoch or currency codes.
 
-source_system: salesforce
+source_system: chargebee
 brand: SiteDocs
 region: US
 target_catalog: bbdatawarehouse_dev
@@ -9,173 +24,171 @@ source_schema: silver
 target_schema: gold
 
 tables:
-
-  # ----------------------------------------------------------------------
-  # DIMENSIONS — UNRESTRICTED
-  # ----------------------------------------------------------------------
-
-  - table_name: salesforce_dim_accounts
+  - table_name: chargebee_dim_customers
     table_type: dim
     load_type: active
     load_mode: full_refresh
-    hub: salesforce_hub_accounts
-    key_column: AccountKey
-    filter: "1=1"
-    is_active: true
+    hub: chargebee_hub_customers
+    key_column: CustomerKey
     satellites:
-      - name: salesforce_bsat_accounts_sitedocs_us
+      - name: chargebee_bsat_customers_sitedocs_us
         satellite_type: business
         columns:
-          - source: AccountType
-          - source: AccountFirstBecameCustomerOn
-          - source: AccountOwnerName
-          - source: AccountPartnerType
-          - source: AccountPartner2Type
-          - source: AccountRollUpToParentAccount
-          - source: AccountChargeBeeId
-          - source: AccountParentAccountName
-          - source: AccountChargeBeeSubscriptionMRR
-          - source: AccountChargeBeeSubscriptionARR
+          - source: CustomerAutoCollection
+            target: AutoCollection
+          - source: CustomerDeleted
+            target: Deleted
+          - source: CustomerSalesforceAccountId
+            target: SalesforceAccountId
+          - source: CustomerMrrUsd
+            target: MrrUsd
+          - source: CustomerCreatedAt
+            target: CreatedAt
 
-  - table_name: salesforce_fact_opportunities
-    table_type: fact
-    load_type: active
-    load_mode: full_refresh
-    hub: salesforce_hub_opportunities
-    key_column: OpportunityKey
-    filter: "1=1"
-    is_active: true
-    satellites:
-      - name: salesforce_bsat_opportunities_sitedocs_us
-        satellite_type: business
-        columns:
-          - source: OpportunityARR
-          - source: OpportunityGrowthARR
-          - source: OpportunityWonARR
-    foreign_keys:
-      - link: salesforce_link_opportunity_account
-        hub_key: HubAccountHashKey
-        fk_column: OpportunityAccountKey
-        driving_key: false
-        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_sitedocs
-        join_type: LEFT
-      - link: salesforce_link_opportunity_account
-        hub_key: HubAccountHashKey
-        fk_column: OpportunityAccountRestrictedKey
-        driving_key: false
-        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_sitedocs
-        join_type: LEFT
-      - link: salesforce_link_opportunity_account_partner_created_lead
-        hub_key: HubAccountHashKey
-        fk_column: OpportunityPartnerCreatedLeadAccountKey
-        driving_key: false
-        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_partner_created_lead_sitedocs
-        join_type: LEFT
-      - link: salesforce_link_opportunity_account_partner_created_lead
-        hub_key: HubAccountHashKey
-        fk_column: OpportunityPartnerCreatedLeadAccountRestrictedKey
-        driving_key: false
-        effectivity_satellite: salesforce_effsat_salesforce_link_opportunity_account_partner_created_lead_sitedocs
-        join_type: LEFT
-
-  - table_name: salesforce_dim_opportunities
+  #PII columns from the restricted bsat - joins to chargebee_dim_customers on CustomerKey
+  - table_name: chargebee_dim_customers_restricted
     table_type: dim
     load_type: active
     load_mode: full_refresh
-    hub: salesforce_hub_opportunities
-    key_column: OpportunityKey
-    filter: "1=1"
-    is_active: true
+    hub: chargebee_hub_customers
+    key_column: CustomerRestrictedKey
     satellites:
-      - name: salesforce_bsat_opportunities_sitedocs_us
+      - name: chargebee_bsat_customers_restricted_sitedocs_us
         satellite_type: business
         columns:
-          - source: OpportunityStageName
-          - source: OpportunityCloseDate
-          - source: OpportunityType
-          - source: OpportunityRenewedFrom
-          - source: OpportunityRenewedTo
-          - source: OpportunityPartnerContractTypePrimary
-          - source: OpportunityWhoCreatedLeadAccountAccountType
-          - source: OpportunityChargeBeeSubscriptionId
-          - source: OpportunityCountryFormulaGrouping
-          - source: OpportunityARRIsOpportunityARRActive
-          - source: OpportunityPartnerType
+          - source: CustomerCompany
+            target: Company
+          - source: CustomerEmail
+            target: Email
 
-  # ----------------------------------------------------------------------
-  # DIMENSIONS — RESTRICTED
-  # ----------------------------------------------------------------------
-
-  - table_name: salesforce_dim_accounts_restricted
+  - table_name: chargebee_dim_plans
     table_type: dim
     load_type: active
     load_mode: full_refresh
-    hub: salesforce_hub_accounts
-    key_column: AccountRestrictedKey
-    filter: "1=1"
-    is_active: true
+    hub: chargebee_hub_plans
+    key_column: PlanKey
     satellites:
-      - name: salesforce_bsat_accounts_restricted_sitedocs_us
+      - name: chargebee_bsat_plans_sitedocs_us
         satellite_type: business
         columns:
-          - source: AccountName
+          - source: PlanName
+            target: Name
+          - source: PlanPeriod
+            target: Period
+          - source: PlanPeriodUnit
+            target: PeriodUnit
+          - source: PlanCurrencyCode
+            target: CurrencyCode
+          - source: PlanStatus
+            target: Status
+          - source: PlanPriceUsd
+            target: PriceUsd
 
-  # ----------------------------------------------------------------------
-  # FACTS
-  # ----------------------------------------------------------------------
-
-  - table_name: salesforce_fact_opportunity_line_items
+  - table_name: chargebee_fact_subscriptions
     table_type: fact
     load_type: active
     load_mode: full_refresh
-    hub: salesforce_hub_opportunity_line_items
-    key_column: OpportunityLineItemKey
-    filter: "1=1"
-    is_active: true
+    hub: chargebee_hub_subscriptions
+    key_column: SubscriptionKey
     satellites:
-      - name: salesforce_bsat_opportunity_line_items_sitedocs_us
+      - name: chargebee_bsat_subscriptions_sitedocs_us
         satellite_type: business
         columns:
-          - source: OpportunityLineItemProduct2Id
-          - source: OpportunityLineItemProductCode
-          - source: OpportunityLineItemName
-          - source: OpportunityLineItemCurrencyIsoCode
-          - source: OpportunityLineItemTotalPrice
-          - source: OpportunityLineItemUnitPrice
-          - source: OpportunityLineItemListPrice
-          - source: OpportunityLineItemTotalPriceInUSDNEM2025
-          - source: OpportunityLineItemIsRecurringProduct
+          - source: SubscriptionStatus
+            target: Status
+          - source: SubscriptionBillingPeriod
+            target: BillingPeriod
+          - source: SubscriptionBillingPeriodUnit
+            target: BillingPeriodUnit
+          - source: SubscriptionDeleted
+            target: Deleted
+          - source: SubscriptionMrrUsd
+            target: MrrUsd
+          - source: SubscriptionPlanAmountUsd
+            target: PlanAmountUsd
+          - source: SubscriptionActivatedDateKey
+            target: ActivatedDateKey
+          - source: SubscriptionCurrentTermStartDateKey
+            target: CurrentTermStartDateKey
+          - source: SubscriptionCurrentTermEndDateKey
+            target: CurrentTermEndDateKey
+          - source: SubscriptionNextBillingDateKey
+            target: NextBillingDateKey
+          - source: SubscriptionCancelledDateKey
+            target: CancelledDateKey
+          - source: SubscriptionCurrencyKey
+            target: CurrencyKey
+          - source: ETL_HashDiff
+      #address key from the restricted bsat - carried here with 'Restricted' in the column
+      #name so the column-level masking policy applies to it
+      - name: chargebee_bsat_subscriptions_restricted_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: SubscriptionShippingAddressKey
+            target: ShippingAddressRestrictedKey
     foreign_keys:
-      - link: salesforce_link_opportunity_line_item_opportunity
-        hub_key: HubOpportunityHashKey
-        fk_column: OpportunityLineItemOpportunityKey
-        driving_key: false
-        join_type: INNER
+      - link: chargebee_link_subscription_customer
+        hub_key: HubCustomerHashKey
+        fk_column: CustomerKey
+        join_type: LEFT
+      - link: chargebee_link_subscription_customer
+        hub_key: HubCustomerHashKey
+        fk_column: CustomerRestrictedKey
+        join_type: LEFT
+      - link: chargebee_link_subscription_plan
+        hub_key: HubPlanHashKey
+        fk_column: PlanKey
+        effectivity_satellite: chargebee_effsat_chargebee_link_subscription_plan_sitedocs
+        join_type: LEFT
 
-  - table_name: salesforce_fact_opp_details
+  - table_name: chargebee_fact_invoices
     table_type: fact
     load_type: active
     load_mode: full_refresh
-    hub: salesforce_hub_opp_details
-    key_column: OppDetailKey
-    filter: "1=1"
-    is_active: true
+    hub: chargebee_hub_invoices
+    key_column: InvoiceKey
     satellites:
-      - name: salesforce_bsat_opp_details_sitedocs_us
+      - name: chargebee_bsat_invoices_sitedocs_us
         satellite_type: business
         columns:
-          - source: OppDetailARRCategory
-          - source: OppDetailARRCurrency
-          - source: OppDetailARRIsCurrentlyActive
-          - source: OppDetailARROverride
-          - source: OppDetailARRTermDays
-          - source: OppDetailARRInUSDNEMRates
-          - source: OppDetailARRTotalIncomingARRInUSD
-          - source: OppDetailARRCurrentMinusIncomingInUSD
+          - source: InvoiceStatus
+            target: Status
+          - source: InvoiceRecurring
+            target: Recurring
+          - source: InvoiceDeleted
+            target: Deleted
+          - source: InvoiceTotalUsd
+            target: TotalUsd
+          - source: InvoiceAmountPaidUsd
+            target: AmountPaidUsd
+          - source: InvoiceAmountDueUsd
+            target: AmountDueUsd
+          - source: InvoiceDateKey
+            target: InvoiceDateKey
+          - source: InvoiceDueDateKey
+            target: DueDateKey
+          - source: InvoiceCurrencyKey
+            target: CurrencyKey
+          - source: ETL_HashDiff
+      #address keys from the restricted bsat - carried here with 'Restricted' in the column
+      #names so the column-level masking policy applies to them
+      - name: chargebee_bsat_invoices_restricted_sitedocs_us
+        satellite_type: business
+        columns:
+          - source: InvoiceBillingAddressKey
+            target: BillingAddressRestrictedKey
+          - source: InvoiceShippingAddressKey
+            target: ShippingAddressRestrictedKey
     foreign_keys:
-      - link: salesforce_link_opp_detail_opportunity
-        hub_key: HubOpportunityHashKey
-        fk_column: OppDetailsOpportunityKey
-        driving_key: false
-        join_type: INNER
-
+      - link: chargebee_link_invoice_customer
+        hub_key: HubCustomerHashKey
+        fk_column: CustomerKey
+        join_type: LEFT
+      - link: chargebee_link_invoice_customer
+        hub_key: HubCustomerHashKey
+        fk_column: CustomerRestrictedKey
+        join_type: LEFT
+      - link: chargebee_link_invoice_subscription
+        hub_key: HubSubscriptionHashKey
+        fk_column: SubscriptionKey
+        join_type: LEFT
