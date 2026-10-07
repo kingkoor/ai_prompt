@@ -1,1 +1,196 @@
+# Gold Layer Configuration - Recurly (GoCanvas US)
+# See README.md in this directory for documentation on load types, satellite types,
+# restricted table rules, foreign key resolution strategies, and bridge tables.
+# Run sync_gold_metadata_runner.py to push changes into the metadata tables.
+#
+# DESIGN RULES:
+#   1. Column names keep their silver entity-prefix as-is (no aliasing).
+#   2. If a column exists in both vault sat and business sat, source from bsat.
+#   3. Tables are built one-by-one matching the Fabric gold layer definitions.
+#
+# GRAIN STATEMENTS:
+#   fact_invoices:              one row per invoice (billing event)
+#   fact_subscriptions:         one row per subscription (entity, current state)
+#   dim_accounts:               one row per account (entity)
+#   dim_plans:                  one row per plan (entity)
+
+source_system: recurly
+brand: GoCanvas
+region: US
+target_catalog: bbdatawarehouse_dev
+source_schema: silver
+target_schema: gold
+
+tables:
+
+    # --------------------------------------------------------------------------
+    # FACTS
+    # --------------------------------------------------------------------------
+
+  - table_name: recurly_fact_invoices
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: recurly_hub_invoices
+    key_column: InvoiceKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: recurly_bsat_invoices_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: InvoiceClosedAtKey
+          - source: InvoiceDueAtKey
+          - source: InvoiceCreatedAtKey
+          - source: InvoiceState
+          - source: InvoiceType
+          - source: InvoiceCurrencyKey
+          - source: InvoiceTotal
+          - source: InvoiceSubtotal
+          - source: InvoiceDiscount
+          - source: InvoiceSubtotalAfterDiscount
+          - source: InvoicePaid
+          - source: InvoiceBalance
+          - source: InvoiceRefundableAmount
+    foreign_keys:
+      - link: recurly_link_invoices_accounts
+        hub_key: HubAccountHashKey
+        fk_column: InvoiceAccountKey
+        driving_key: false
+        join_type: LEFT
+      - link: recurly_link_invoices_accounts
+        hub_key: HubAccountHashKey
+        fk_column: InvoiceAccountRestrictedKey
+        driving_key: false
+        join_type: LEFT
+
+  - table_name: recurly_fact_subscriptions
+    table_type: fact
+    load_type: active
+    load_mode: full_refresh
+    hub: recurly_hub_subscriptions
+    key_column: SubscriptionKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: recurly_bsat_subscriptions_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: SubscriptionUuid
+          - source: SubscriptionIsAutoRenew
+          - source: SubscriptionState
+          - source: SubscriptionCollectionMethod
+          - source: SubscriptionNetTermsType
+          - source: SubscriptionCurrencyKey
+          - source: SubscriptionCurrentPeriodEndsAtKey
+          - source: SubscriptionCurrentPeriodStartedAtKey
+          - source: SubscriptionCurrentTermEndsAtKey
+          - source: SubscriptionCurrentTermStartedAtKey
+          - source: SubscriptionCreatedAtKey
+          - source: SubscriptionConvertedAtKey
+          - source: SubscriptionActivatedAtKey
+          - source: SubscriptionPausedAtKey
+          - source: SubscriptionResumeAtKey
+          - source: SubscriptionExpiresAtKey
+          - source: SubscriptionCanceledAtKey
+          - source: SubscriptionUpdatedAtKey
+          - source: SubscriptionQuantity
+          - source: SubscriptionUnitAmount
+          - source: SubscriptionSubtotal
+          - source: SubscriptionTotal
+          - source: SubscriptionRemainingBillingCycles
+          - source: SubscriptionRemainingPauseCycles
+          - source: SubscriptionRenewalBillingCycles
+          - source: SubscriptionTotalBillingCycles
+          - source: SubscriptionNetTerms
+    foreign_keys:
+      - link: recurly_link_subscriptions_accounts
+        hub_key: HubAccountHashKey
+        fk_column: SubscriptionAccountKey
+        driving_key: false
+        join_type: LEFT
+      - link: recurly_link_subscriptions_accounts
+        hub_key: HubAccountHashKey
+        fk_column: SubscriptionAccountRestrictedKey
+        driving_key: false
+        join_type: LEFT
+      - link: recurly_link_subscriptions_plans
+        hub_key: HubPlanHashKey
+        fk_column: SubscriptionPlanKey
+        driving_key: false
+        join_type: LEFT
+
+
+    # --------------------------------------------------------------------------
+    # DIMENSIONS — UNRESTRICTED
+    # --------------------------------------------------------------------------
+
+  - table_name: recurly_dim_accounts
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: recurly_hub_accounts
+    key_column: AccountKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: recurly_bsat_accounts_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: AccountCode
+          - source: AccountCreatedAt
+          - source: AccountUpdatedAt
+
+  - table_name: recurly_dim_plans
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: recurly_hub_plans
+    key_column: PlanKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: recurly_bsat_plans_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: PlanCode
+          - source: PlanName
+          - source: PlanCreatedAt
+          - source: PlanUpdatedAt
+
+  - table_name: recurly_dim_invoices
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: recurly_hub_invoices
+    key_column: InvoiceKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: recurly_bsat_invoices_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: InvoiceNumber
+          - source: InvoiceUpdatedAt
+
+    # --------------------------------------------------------------------------
+    # DIMENSIONS — RESTRICTED (PII, access-controlled)
+    # --------------------------------------------------------------------------
+
+  - table_name: recurly_dim_accounts_restricted
+    table_type: dim
+    load_type: active
+    load_mode: full_refresh
+    hub: recurly_hub_accounts
+    key_column: AccountRestrictedKey
+    filter: "1=1"
+    is_active: true
+    satellites:
+      - name: recurly_bsat_accounts_restricted_gocanvas_us
+        satellite_type: business
+        columns:
+          - source: AccountCompany
+          - source: AccountEmail
+          - source: AccountFirstName
+          - source: AccountLastName
 
