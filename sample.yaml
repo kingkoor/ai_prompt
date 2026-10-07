@@ -1,1 +1,51 @@
+# =============================================================================
+# dim_addresses Source Configuration — Salesforce GoCanvas (GoCanvas / US)
+# =============================================================================
+# Maps bsat address columns to the shared gold dim_addresses table.
+# Each source entry defines one bsat that contributes addresses. The contacts
+# bsat is listed twice (mailing + other) — same table, two address roles.
+#
+# The runner reads this config via the `config_path` widget parameter.
+# Column mapping keys are the dim_addresses target columns; values are
+# the bsat source columns.
+
+
+source_system: salesforce
+source_schema: silver
+brand: GoCanvas
+region: US
+
+sources:
+  - source_table: salesforce_bsat_contacts_restricted_gocanvas_us
+    description: "GoCanvas US contact mailing addresses"
+    column_mapping:
+      AddressKey: ContactMailingAddressKey
+      Address1: ContactMailingStreetNormalized
+      Address2: ContactMailingStreet2Normalized
+      City: ContactMailingCityNormalized
+      StateCode: ContactMailingStateNormalized
+      ZipCode: ContactMailingPostalCodeNormalized
+      CountryCode: ContactMailingCountryNormalized
+
+  - source_table: salesforce_bsat_contacts_restricted_gocanvas_us
+    description: "GoCanvas US contact other addresses"
+    column_mapping:
+      AddressKey: ContactOtherAddressKey
+      Address1: ContactOtherStreetNormalized
+      Address2: ContactOtherStreet2Normalized
+      City: ContactOtherCityNormalized
+      StateCode: ContactOtherStateNormalized
+      ZipCode: ContactOtherPostalCodeNormalized
+      CountryCode: ContactOtherCountryNormalized
+
+  - source_table: salesforce_bsat_users_restricted_gocanvas_us
+    description: "GoCanvas US user addresses"
+    column_mapping:
+      AddressKey: UserAddressKey
+      Address1: UserStreetNormalized
+      Address2: UserStreet2Normalized
+      City: UserCityNormalized
+      StateCode: UserStateNormalized
+      ZipCode: UserPostalCodeNormalized
+      CountryCode: UserCountryNormalized
 
