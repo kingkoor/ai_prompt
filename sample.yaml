@@ -1,1 +1,51 @@
+      - target_column: VendorEmail
+        source_column: VendorEmail
+        description: ''
+        is_active: true
+        transforms:
+          - name: trim
+          - name: lower
+          - name: default_values
 
+      - target_column: VendorAltEmail
+        source_column: VendorAltEmail
+        description: ''
+        is_active: true
+        transforms:
+          - name: trim
+          - name: lower
+          - name: default_values
+
+      - target_column: VendorEmailKey
+        source_column: VendorEmail
+        description: Conformed EmailKey - MD5 of lower(trim(email)), matches dim_email (DODE-2182).
+        is_active: true
+        transforms:
+          - name: email_to_key
+
+      - target_column: VendorAltEmailKey
+        source_column: VendorAltEmail
+        description: Conformed EmailKey - MD5 of lower(trim(email)), matches dim_email (DODE-2182).
+        is_active: true
+        transforms:
+          - name: email_to_key
+
+      # DODE-2182: conformed EmailKey only - raw email stays in the _restricted dim
+      - name: netsuite_bsat_vendors_restricted_bluebeam_us
+        satellite_type: business
+        columns:
+          - source: VendorEmailKey
+          - source: VendorAltEmailKey
+
+
+  - source_table: netsuite_bsat_vendors_restricted_bluebeam_us
+    description: "Bluebeam US vendor emails"
+    column_mapping:
+      EmailKey: VendorEmailKey
+      Email: VendorEmail
+
+  - source_table: netsuite_bsat_vendors_restricted_bluebeam_us
+    description: "Bluebeam US vendor alternate emails"
+    column_mapping:
+      EmailKey: VendorAltEmailKey
+      Email: VendorAltEmail
